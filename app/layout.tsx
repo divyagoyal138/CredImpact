@@ -13,7 +13,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'CampusLink - College Exclusive Task Exchange Platform',
   description: 'Earn your reputation before you graduate. Exchange tasks and skills on campus.',
-  generator: 'v0.app',
   icons: {
     icon: [
       {

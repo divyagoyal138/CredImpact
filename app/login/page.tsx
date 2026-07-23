@@ -2,28 +2,11 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { verifyCollege, verifyStudentUid, verifyStudentOtp } from '@/lib/api'
 
-// Static credentials
-const STATIC_COLLEGE_CODE = 'KJSCE'
-const STATIC_STUDENT_UID = '2023CSE045'
+// Keep admin login static for now
 const STATIC_ADMIN_UID = 'admin@kjsce.edu'
-const STATIC_OTP = '7391'
 const STATIC_ADMIN_PASSWORD = 'admin123'
-
-const STATIC_STUDENT_USER = {
-  collegeCode: 'KJSCE',
-  uid: '2023CSE045',
-  name: 'Rahul Sharma',
-  branch: 'Computer Engineering',
-  year: '3rd Year',
-  semester: 'Semester 5',
-  division: 'B',
-  phone: '+91 98XXX XX789',
-  ccBalance: 340,
-  department: 'CSE',
-  role: 'student',
-  photo: null,
-}
 
 const STATIC_ADMIN_USER = {
   collegeCode: 'KJSCE',
@@ -46,22 +29,26 @@ export default function LoginPage() {
   const [otpError, setOtpError] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
   const [adminPasswordError, setAdminPasswordError] = useState('')
+  const [loading, setLoading] = useState(false)
   const otpRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null])
 
   // Step 1: College Code validation
-  const handleCollegeCodeContinue = () => {
+  const handleCollegeCodeContinue = async () => {
     setCollegeCodeError('')
     if (!collegeCode) {
       setCollegeCodeError('Please enter your college code')
       return
     }
 
-    if (collegeCode.toUpperCase() !== STATIC_COLLEGE_CODE) {
-      setCollegeCodeError('College not found. Please check your code.')
-      return
+    setLoading(true)
+    try {
+      await verifyCollege(collegeCode)
+      setStep(2)
+    } catch (error: any) {
+      setCollegeCodeError(error.message || 'College not found')
+    } finally {
+      setLoading(false)
     }
-
-    setStep(2)
   }
 
   // Step 2: Role selection
@@ -91,19 +78,22 @@ export default function LoginPage() {
   }
 
   // Step 4: Student UID validation
-  const handleUidSubmit = () => {
+  const handleUidSubmit = async () => {
     setUidError('')
     if (!uid) {
       setUidError('Please enter your UID')
       return
     }
 
-    if (uid !== STATIC_STUDENT_UID) {
-      setUidError('UID not registered in college records')
-      return
+    setLoading(true)
+    try {
+      await verifyStudentUid(collegeCode, uid)
+      setStep(6)
+    } catch (error: any) {
+      setUidError(error.message || 'UID not registered in college records')
+    } finally {
+      setLoading(false)
     }
-
-    setStep(6)
   }
 
   // Step 5: Student OTP handling
@@ -129,21 +119,24 @@ export default function LoginPage() {
     }
   }
 
-  const handleOtpSubmit = () => {
+  const handleOtpSubmit = async () => {
     const otpCode = otp.join('')
     if (otpCode.length !== 4) {
       setOtpError('Please enter all 4 digits')
       return
     }
 
-    if (otpCode !== STATIC_OTP) {
-      setOtpError('Incorrect code. Please try again.')
-      return
+    setLoading(true)
+    try {
+      const response = await verifyStudentOtp(collegeCode, uid, otpCode)
+      // Store user in localStorage
+      localStorage.setItem('credimpact_user', JSON.stringify(response.student))
+      setStep(5)
+    } catch (error: any) {
+      setOtpError(error.message || 'Incorrect code. Please try again.')
+    } finally {
+      setLoading(false)
     }
-
-    // Store user in localStorage
-    localStorage.setItem('credimpact_user', JSON.stringify(STATIC_STUDENT_USER))
-    setStep(5)
   }
 
   const handleEnterCredImpact = () => {
@@ -214,9 +207,10 @@ export default function LoginPage() {
             </div>
             <button
               onClick={handleCollegeCodeContinue}
-              className="w-full rounded-[10px] bg-primary px-4 py-3 h-11 font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              disabled={loading}
+              className="w-full rounded-[10px] bg-primary px-4 py-3 h-11 font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              Continue
+              {loading ? 'Checking...' : 'Continue'}
             </button>
             <p className="text-center text-xs text-muted-foreground">
               Contact your college admin if you do not have a code
@@ -361,9 +355,10 @@ export default function LoginPage() {
             </div>
             <button
               onClick={handleUidSubmit}
-              className="w-full rounded-[10px] bg-primary px-4 py-3 h-11 font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              disabled={loading}
+              className="w-full rounded-[10px] bg-primary px-4 py-3 h-11 font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              Send Verification Code
+              {loading ? 'Checking...' : 'Send Verification Code'}
             </button>
           </div>
         )}
@@ -382,7 +377,7 @@ export default function LoginPage() {
 
             <div className="text-center">
               <p className="text-sm text-muted-foreground">
-                Verification code sent to {STATIC_STUDENT_USER.phone}
+                Verification code sent to your registered phone
               </p>
             </div>
 
@@ -413,9 +408,10 @@ export default function LoginPage() {
 
             <button
               onClick={handleOtpSubmit}
-              className="w-full rounded-[10px] bg-primary px-4 py-3 h-11 font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              disabled={loading}
+              className="w-full rounded-[10px] bg-primary px-4 py-3 h-11 font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              Verify and Continue
+              {loading ? 'Verifying...' : 'Verify and Continue'}
             </button>
 
             <div className="text-center">
@@ -449,12 +445,23 @@ export default function LoginPage() {
 
             <div>
               <h2 className="text-xl font-medium text-foreground">
-                Welcome back {role === 'admin' ? STATIC_ADMIN_USER.name : STATIC_STUDENT_USER.name}
+                Welcome back {role === 'admin' ? STATIC_ADMIN_USER.name : (() => {
+                  const storedUser = localStorage.getItem('credimpact_user')
+                  if (storedUser) return JSON.parse(storedUser).name
+                  return 'Student'
+                })()}
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
                 {role === 'admin'
                   ? STATIC_ADMIN_USER.department
-                  : `${STATIC_STUDENT_USER.branch} • ${STATIC_STUDENT_USER.year} • Division ${STATIC_STUDENT_USER.division}`}
+                  : (() => {
+                      const storedUser = localStorage.getItem('credimpact_user')
+                      if (storedUser) {
+                        const user = JSON.parse(storedUser)
+                        return `${user.department} • Semester ${user.semester}`
+                      }
+                      return ''
+                    })()}
               </p>
             </div>
 

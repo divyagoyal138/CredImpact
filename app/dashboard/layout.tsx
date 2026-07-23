@@ -179,7 +179,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     try {
-      setUser(JSON.parse(storedUser))
+      const parsedUser = JSON.parse(storedUser)
+      // Ensure all properties are present
+      setUser({
+        ...parsedUser,
+        branch: parsedUser.branch || parsedUser.department || '',
+        year: parsedUser.year || '',
+        division: parsedUser.division || '',
+        photo: parsedUser.photo || null
+      })
     } catch {
       router.push('/login')
       return
@@ -198,6 +206,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push('/dashboard')
     } else {
       router.push(`/dashboard/${itemId}`)
+    }
+  }
+
+  const handleTopNavClick = (itemId: string) => {
+    if (itemId === 'explore') {
+      router.push('/dashboard')
+    } else if (itemId === 'my-tasks') {
+      router.push('/dashboard/applied')
+    } else if (itemId === 'portfolio') {
+      router.push('/dashboard/my-portfolio')
     }
   }
 
@@ -232,7 +250,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ...portfolio,
         ])
         // Update user's CC balance
-        setUser(prev => ({ ...prev, ccBalance: (prev.ccBalance || 0) + task.cc }))
+        setUser((prev: any) => ({ ...prev, ccBalance: (prev.ccBalance || 0) + task.cc }))
         // Update task status
         setTasks(tasks.map(t => t.id === taskId ? { ...t, status: 'completed' } : t))
       }
@@ -268,6 +286,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <TopNav
           user={user}
           activeNav="explore"
+          onNavClick={handleTopNavClick}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
