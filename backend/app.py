@@ -23,12 +23,11 @@ def get_db_connection():
 @app.route('/api/college/verify', methods=['POST'])
 def verify_college():
     data = request.json
-    college_code = data.get('collegeCode')
+    college_code = data.get('collegeCode', '').strip()
 
     conn = get_db_connection()
     cur = conn.cursor()
-    # Check if any student has this collegeCode (since user didn't create a college table)
-    cur.execute('SELECT DISTINCT collegecode FROM Student WHERE collegecode = %s', (college_code,))
+    cur.execute('SELECT DISTINCT collegecode FROM Student WHERE UPPER(collegecode) = UPPER(%s)', (college_code,))
     college = cur.fetchone()
     cur.close()
     conn.close()
@@ -48,12 +47,12 @@ def verify_college():
 @app.route('/api/student/login/verify-uid', methods=['POST'])
 def verify_student_uid():
     data = request.json
-    college_code = data.get('collegeCode')
-    student_uid = data.get('studentUid')
+    college_code = data.get('collegeCode', '').strip()
+    student_uid = data.get('studentUid', '').strip()
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT * FROM Student WHERE collegecode = %s AND studentid = %s', (college_code, student_uid))
+    cur.execute('SELECT * FROM Student WHERE UPPER(collegecode) = UPPER(%s) AND UPPER(studentid) = UPPER(%s)', (college_code, student_uid))
     student = cur.fetchone()
     cur.close()
     conn.close()
@@ -72,13 +71,13 @@ def verify_student_uid():
 @app.route('/api/student/login/verify-otp', methods=['POST'])
 def verify_student_otp():
     data = request.json
-    college_code = data.get('collegeCode')
-    student_uid = data.get('studentUid')
-    otp = data.get('otp')
+    college_code = data.get('collegeCode', '').strip()
+    student_uid = data.get('studentUid', '').strip()
+    otp = data.get('otp', '').strip()
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT * FROM Student WHERE collegecode = %s AND studentid = %s AND otp = %s', (college_code, student_uid, otp))
+    cur.execute('SELECT * FROM Student WHERE UPPER(collegecode) = UPPER(%s) AND UPPER(studentid) = UPPER(%s) AND otp = %s', (college_code, student_uid, otp))
     student = cur.fetchone()
     cur.close()
     conn.close()
