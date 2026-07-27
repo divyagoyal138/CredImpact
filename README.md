@@ -1,4 +1,4 @@
-# CredImpact (CampusLink SaaS) 🎓✨
+# CredImpact 
 
 **CredImpact** is an enterprise-grade SaaS platform and credit management portal designed for educational institutions. It empowers students to track academic and extracurricular performance, earn CreditCoins (CC), participate in events, monitor leaderboards, build personal portfolios, and manage their college profile within a modern, responsive interface.
 
