@@ -164,37 +164,7 @@ CredImpact/
    - **Student Portal & Login**: [http://localhost:3000/login](http://localhost:3000/login)
    - **Admin Dashboard**: [http://localhost:3000/admin-dashboard](http://localhost:3000/admin-dashboard)
 
----
-
-## 🎨 Theme Customization
-
-CredImpact features a dual theme system managed by `theme-context.tsx`:
-- **Light Theme**: Deep navy primary headers, soft beige background, muted gold accents.
-- **Dark Theme**: Deep charcoal background, light gray text, vibrant gold highlights.
-
-To switch themes, navigate to `/dashboard/settings` within the app or use the `useTheme()` hook:
-```tsx
-import { useTheme } from '@/lib/theme-context';
-
-export function ThemeSwitcher() {
-  const { theme, toggleTheme } = useTheme();
-  return <button onClick={toggleTheme}>Current: {theme}</button>;
-}
-```
-
----
-
-## 🔗 Key API Endpoints
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/college/verify` | Verify institutional college code |
-| `POST` | `/api/student/login/verify-uid` | Verify student ID for a college |
-| `POST` | `/api/student/login/verify-otp` | Verify 4-digit OTP and fetch student profile |
-| `GET` | `/api/student/<student_id>` | Fetch student profile and CC balance |
-
----
 
 ## 📄 License
 
-This project is proprietary and intended for institutional application and development within CampusLink / CredImpact.
+This project is proprietary and intended for institutional application and development within CredImpact.
