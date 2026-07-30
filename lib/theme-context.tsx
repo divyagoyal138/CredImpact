@@ -2,10 +2,12 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 
-type Theme = 'light' | 'dark'
+export type Theme = 'light' | 'dark' | 'dark-warm' | 'system'
+export type EffectiveTheme = 'light' | 'dark' | 'dark-warm'
 
 interface ThemeContextType {
   theme: Theme
+  effectiveTheme: EffectiveTheme
   setTheme: (theme: Theme) => void
   toggleTheme: () => void
 }
@@ -13,37 +15,73 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('light')
+  const [theme, setThemeState] = useState<Theme>('dark')
+  const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>('dark')
   const [mounted, setMounted] = useState(false)
+
+  const resolveEffectiveTheme = (selectedTheme: Theme): EffectiveTheme => {
+    if (selectedTheme === 'system') {
+      if (typeof window !== 'undefined') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        return prefersDark ? 'dark' : 'light'
+      }
+      return 'dark'
+    }
+    return selectedTheme
+  }
+
+  const applyThemeToDOM = (effective: EffectiveTheme) => {
+    const htmlElement = document.documentElement
+    htmlElement.classList.remove('dark', 'dark-warm', 'light')
+
+    if (effective === 'dark') {
+      htmlElement.classList.add('dark')
+    } else if (effective === 'dark-warm') {
+      htmlElement.classList.add('dark', 'dark-warm')
+    } else {
+      htmlElement.classList.add('light')
+    }
+  }
 
   // Load theme from localStorage on mount
   useEffect(() => {
-    const storedTheme = localStorage.getItem('campuslink_theme') as Theme | null
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const initialTheme = storedTheme || (prefersDark ? 'dark' : 'light')
-    
+    const storedTheme = (localStorage.getItem('credimpact_theme') || localStorage.getItem('campuslink_theme')) as Theme | null
+    const initialTheme = storedTheme || 'dark'
+    const computedEffective = resolveEffectiveTheme(initialTheme)
+
     setThemeState(initialTheme)
-    applyTheme(initialTheme)
+    setEffectiveTheme(computedEffective)
+    applyThemeToDOM(computedEffective)
     setMounted(true)
   }, [])
 
-  const applyTheme = (newTheme: Theme) => {
-    const htmlElement = document.documentElement
-    if (newTheme === 'dark') {
-      htmlElement.classList.add('dark')
-    } else {
-      htmlElement.classList.remove('dark')
+  // Listen for system theme changes when in 'system' mode
+  useEffect(() => {
+    if (theme !== 'system') return
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleChange = () => {
+      const computedEffective = mediaQuery.matches ? 'dark' : 'light'
+      setEffectiveTheme(computedEffective)
+      applyThemeToDOM(computedEffective)
     }
+
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [theme])
+
+  const setTheme = (newTheme: Theme) => {
+    const computedEffective = resolveEffectiveTheme(newTheme)
+    setThemeState(newTheme)
+    setEffectiveTheme(computedEffective)
+    applyThemeToDOM(computedEffective)
+
+    localStorage.setItem('credimpact_theme', newTheme)
     localStorage.setItem('campuslink_theme', newTheme)
   }
 
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme)
-    applyTheme(newTheme)
-  }
-
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light'
+    const newTheme = effectiveTheme === 'light' ? 'dark' : 'light'
     setTheme(newTheme)
   }
 
@@ -52,7 +90,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, effectiveTheme, setTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   )

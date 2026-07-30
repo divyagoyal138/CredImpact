@@ -105,83 +105,137 @@
 .dark {
   color-scheme: dark;
 
-  --background: #2C2E30; /* Charcoal Slate */
-  --foreground: #EDE8DC;
-  --card: #4B3B2A; /* Oxford Brown */
-  --card-foreground: #EDE8DC;
-  --popover: #4B3B2A;
-  --popover-foreground: #EDE8DC;
+  /* Surfaces */
+  --background: #0A0E17; /* Deep Obsidian Slate */
+  --foreground: #F1F5F9; /* Crisp Slate White */
+  --card: #141C2B; /* Slate Glass Card */
+  --card-foreground: #F1F5F9;
+  --popover: #141C2B;
+  --popover-foreground: #F1F5F9;
 
-  --primary: #BFA76F; /* Faded Gold */
-  --primary-foreground: #2C2E30;
-  --secondary: #3B3F2F; /* Forest Moss */
-  --secondary-foreground: #EDE8DC;
+  /* Brand & actions */
+  --primary: #F59E0B; /* Glowing Amber Gold */
+  --primary-foreground: #0A0E17;
+  --secondary: #1E293B; /* Dark Slate Pill */
+  --secondary-foreground: #F1F5F9;
 
-  --muted: #85614B;
-  --muted-foreground: #9D8B7B;
+  /* Text hierarchy */
+  --muted: #334155;
+  --muted-foreground: #94A3B8; /* Muted Silver Slate */
 
-  --accent: #3B3F2F;
-  --accent-foreground: #EDE8DC;
-  --destructive: #8B2C1F;
-  --urgent: #4B3B2A;
-  --coin: #BFA76F;
+  /* Status */
+  --accent: #10B981; /* Emerald Success */
+  --accent-foreground: #0A0E17;
+  --destructive: #EF4444; /* Crisp Red */
+  --urgent: #2D151B; /* Subtle Red Glass */
+  --coin: #F59E0B; /* Glowing Coin Amber */
 
-  --border: #85614B;
-  --input: #4B3B2A;
-  --ring: #BFA76F;
+  /* UI chrome */
+  --border: #233044; /* Precision Dark Slate Border */
+  --input: #141C2B;
+  --ring: #F59E0B;
 
-  --chart-1: #BFA76F;
-  --chart-2: #8A4B2A;
-  --chart-3: #8B2C1F;
-  --chart-4: #6B2E2F;
-  --chart-5: #3B3F2F;
+  --chart-1: #F59E0B;
+  --chart-2: #38BDF8;
+  --chart-3: #10B981;
+  --chart-4: #F43F5E;
+  --chart-5: #8B5CF6;
 
-  --sidebar: #2C2E30;
-  --sidebar-foreground: #EDE8DC;
-  --sidebar-primary: #BFA76F;
-  --sidebar-primary-foreground: #2C2E30;
-  --sidebar-accent: #3B3F2F;
-  --sidebar-accent-foreground: #EDE8DC;
-  --sidebar-border: #85614B;
-  --sidebar-ring: #BFA76F;
+  --sidebar: #0F172A;
+  --sidebar-foreground: #F1F5F9;
+  --sidebar-primary: #F59E0B;
+  --sidebar-primary-foreground: #0A0E17;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F1F5F9;
+  --sidebar-border: #233044;
+  --sidebar-ring: #F59E0B;
+}
+
+.dark-warm {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --background: #161412; /* Espresso Charcoal */
+  --foreground: #F4EFEA; /* Warm Cream Text */
+  --card: #231F1C; /* Mahogany Slate Card */
+  --card-foreground: #F4EFEA;
+  --popover: #231F1C;
+  --popover-foreground: #F4EFEA;
+
+  /* Brand & actions */
+  --primary: #E5B869; /* Antique Gold */
+  --primary-foreground: #161412;
+  --secondary: #2C2621;
+  --secondary-foreground: #F4EFEA;
+
+  /* Text hierarchy */
+  --muted: #443B33;
+  --muted-foreground: #A3978C;
+
+  /* Status */
+  --accent: #4A5D43; /* Forest Moss */
+  --accent-foreground: #F4EFEA;
+  --destructive: #9E3A3B;
+  --urgent: #2C1B1C;
+  --coin: #E5B869;
+
+  /* UI chrome */
+  --border: #36302B;
+  --input: #231F1C;
+  --ring: #E5B869;
+
+  --chart-1: #E5B869;
+  --chart-2: #D4A373;
+  --chart-3: #4A5D43;
+  --chart-4: #9E3A3B;
+  --chart-5: #8C7B6B;
+
+  --sidebar: #1E1A17;
+  --sidebar-foreground: #F4EFEA;
+  --sidebar-primary: #E5B869;
+  --sidebar-primary-foreground: #161412;
+  --sidebar-accent: #2C2621;
+  --sidebar-accent-foreground: #F4EFEA;
+  --sidebar-border: #36302B;
+  --sidebar-ring: #E5B869;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not(.light) {
+  :root:not(.light):not(.dark-warm) {
     color-scheme: dark;
-    --background: #2C2E30;
-    --foreground: #EDE8DC;
-    --card: #4B3B2A;
-    --card-foreground: #EDE8DC;
-    --popover: #4B3B2A;
-    --popover-foreground: #EDE8DC;
-    --primary: #BFA76F;
-    --primary-foreground: #2C2E30;
-    --secondary: #3B3F2F;
-    --secondary-foreground: #EDE8DC;
-    --muted: #85614B;
-    --muted-foreground: #9D8B7B;
-    --accent: #3B3F2F;
-    --accent-foreground: #EDE8DC;
-    --destructive: #8B2C1F;
-    --urgent: #4B3B2A;
-    --coin: #BFA76F;
-    --border: #85614B;
-    --input: #4B3B2A;
-    --ring: #BFA76F;
-    --chart-1: #BFA76F;
-    --chart-2: #8A4B2A;
-    --chart-3: #8B2C1F;
-    --chart-4: #6B2E2F;
-    --chart-5: #3B3F2F;
-    --sidebar: #2C2E30;
-    --sidebar-foreground: #EDE8DC;
-    --sidebar-primary: #BFA76F;
-    --sidebar-primary-foreground: #2C2E30;
-    --sidebar-accent: #3B3F2F;
-    --sidebar-accent-foreground: #EDE8DC;
-    --sidebar-border: #85614B;
-    --sidebar-ring: #BFA76F;
+    --background: #0A0E17;
+    --foreground: #F1F5F9;
+    --card: #141C2B;
+    --card-foreground: #F1F5F9;
+    --popover: #141C2B;
+    --popover-foreground: #F1F5F9;
+    --primary: #F59E0B;
+    --primary-foreground: #0A0E17;
+    --secondary: #1E293B;
+    --secondary-foreground: #F1F5F9;
+    --muted: #334155;
+    --muted-foreground: #94A3B8;
+    --accent: #10B981;
+    --accent-foreground: #0A0E17;
+    --destructive: #EF4444;
+    --urgent: #2D151B;
+    --coin: #F59E0B;
+    --border: #233044;
+    --input: #141C2B;
+    --ring: #F59E0B;
+    --chart-1: #F59E0B;
+    --chart-2: #38BDF8;
+    --chart-3: #10B981;
+    --chart-4: #F43F5E;
+    --chart-5: #8B5CF6;
+    --sidebar: #0F172A;
+    --sidebar-foreground: #F1F5F9;
+    --sidebar-primary: #F59E0B;
+    --sidebar-primary-foreground: #0A0E17;
+    --sidebar-accent: #1E293B;
+    --sidebar-accent-foreground: #F1F5F9;
+    --sidebar-border: #233044;
+    --sidebar-ring: #F59E0B;
   }
 }
 

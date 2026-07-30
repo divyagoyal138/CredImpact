@@ -1,132 +1,76 @@
-# CampusLink Theme System
+# CredImpact Theme System
 
 ## Overview
-The application now supports both Light and Dark themes with seamless switching and persistent storage.
+CredImpact supports **Light**, **Midnight Obsidian (Dark)**, **Warm Espresso (Dark Academia)**, and **System Auto** themes with instant switching, live color swatches, and persistent storage.
 
 ## Implementation Details
 
-### Components Created
+### Components Created & Updated
 
 #### 1. Theme Context (`lib/theme-context.tsx`)
-- Provides global theme state management using React Context
-- Persists theme preference to localStorage (`campuslink_theme`)
-- Respects system preference on first load
-- Exposes `useTheme()` hook for component consumption
-- Applies `.dark` class to `<html>` element for CSS-based theme switching
+- Provides global theme state management using React Context (`useTheme()`)
+- Persists theme preference to localStorage (`credimpact_theme`)
+- Supports options: `'light' | 'dark' | 'dark-warm' | 'system'`
+- Automatically detects and syncs OS theme changes when set to `'system'`
+- Dynamically manages `.dark` and `.dark-warm` classes on `<html>`
 
 #### 2. Settings Page (`app/dashboard/settings/page.tsx`)
-- Protected route requiring user authentication
-- Located at `/dashboard/settings`
+- Integrated into the unified `DashboardLayout`
+- Located at `/dashboard/settings` and accessible via the sidebar
 - Features:
-  - Visual theme toggle with sun/moon icons
-  - Light and Dark mode options with descriptions
-  - Current theme indicator
-  - Account preferences (Email Notifications, Privacy Settings)
-  - Logout button
-- Accessible from sidebar navigation
+  - Interactive theme selector cards with live color swatches
+  - Option 1: **Midnight Obsidian** (Deep dark slate `#0A0E17` + glowing gold accents `#F59E0B`)
+  - Option 2: **Warm Espresso** (Dark Academia charcoal `#161412` + antique gold `#E5B869`)
+  - Option 3: **Classic Ivory** (Soft beige `#EDE8DC` + deep chestnut `#8B2C1F`)
+  - Option 4: **System Auto** (Matches device operating system preference)
+  - Current active theme label and status indicator
+  - Account preferences (Email Notifications toggle, Public Profile toggle)
+  - Sign out session button
 
-#### 3. Updated Layout (`app/layout.tsx`)
-- Wraps entire app with `ThemeProvider`
-- Enables theme context for all child components
+#### 3. Updated Sidebar (`components/Sidebar.jsx`)
+- Adds **Settings** link with `ti-settings` icon under the Profile section.
 
 #### 4. Color Palettes (`app/globals.css`)
 
-**Light Mode** (Default):
-- Background: Soft beige (#f5f3f0)
-- Foreground: Dark charcoal (#2a2520)
-- Primary: Navy (#1a1f3a)
-- Accent: Muted gold (#c9a961)
-- Destructive: Coral red (#d74545)
+**Midnight Obsidian (Default Dark Mode)**:
+- Background: `#0A0E17` (Deep Obsidian Slate)
+- Foreground: `#F1F5F9` (Crisp Slate White)
+- Card: `#141C2B` (Slate Glass Card)
+- Primary: `#F59E0B` (Glowing Amber Gold)
+- Accent: `#10B981` (Emerald Green)
+- Border: `#233044` (Precision Slate Border)
 
-**Dark Mode**:
-- Background: Very dark (#0f1117)
-- Foreground: Light gray (#e6edf3)
-- Primary: Light/white (#e6edf3)
-- Accent: Warmer gold (#d4a574)
-- Destructive: Light red (#f85149)
+**Warm Espresso (Dark Academia)**:
+- Background: `#161412` (Espresso Charcoal)
+- Foreground: `#F4EFEA` (Warm Cream Text)
+- Card: `#231F1C` (Mahogany Slate Card)
+- Primary: `#E5B869` (Antique Gold)
+- Border: `#36302B`
 
-### How It Works
-
-1. **On App Load**:
-   - `ThemeProvider` checks localStorage for `campuslink_theme`
-   - Falls back to system preference or 'light'
-   - Applies theme by adding/removing `.dark` class on HTML element
-
-2. **Theme Switching**:
-   - User clicks theme button in Settings page
-   - `setTheme()` updates both state and localStorage
-   - CSS transitions smoothly between color variables
-
-3. **Persistence**:
-   - Theme preference saved to localStorage
-   - Persists across page reloads and browser sessions
-   - Works across all pages in the application
-
-4. **Smooth Transitions**:
-   - All elements have `transition-colors duration-300` applied
-   - Colors fade smoothly when switching themes
-   - 300ms transition duration for comfortable user experience
+**Classic Ivory (Light Mode)**:
+- Background: `#EDE8DC` (Antique Ivory)
+- Foreground: `#2C2E30` (Charcoal Slate)
+- Card: `#FAF7F2`
+- Primary: `#8B2C1F` (Deep Chestnut)
 
 ## Usage
 
 ### For Users
-1. Navigate to `/dashboard/settings` (requires login)
-2. Click on "Light" or "Dark" theme option
-3. Theme applies instantly and persists automatically
+1. Navigate to **Settings** from the sidebar or go to `/dashboard/settings`.
+2. Click any theme card to preview and apply it instantly.
+3. Your selection persists across reloads and browser sessions.
 
 ### For Developers
 ```tsx
 import { useTheme } from '@/lib/theme-context'
 
 export function MyComponent() {
-  const { theme, setTheme, toggleTheme } = useTheme()
-  
+  const { theme, effectiveTheme, setTheme } = useTheme()
+
   return (
-    <button onClick={toggleTheme}>
-      Switch to {theme === 'light' ? 'dark' : 'light'} mode
+    <button onClick={() => setTheme('dark')}>
+      Switch to Midnight Obsidian
     </button>
   )
 }
 ```
-
-## Color System
-
-All colors are defined as CSS variables at `:root` and `.dark`:
-- `--background`: Page background
-- `--foreground`: Primary text color
-- `--card`: Card/container backgrounds
-- `--primary`: Main action color (buttons)
-- `--accent`: Highlight/accent color (gold in both themes)
-- `--destructive`: Error/delete action color
-- `--border`: Border color
-- `--input`: Input field background
-- `--muted`: Muted/secondary text color
-- `--sidebar`: Sidebar background
-- `--sidebar-foreground`: Sidebar text color
-- `--sidebar-primary`: Sidebar accent/active color
-
-## Theme Testing
-
-### Light Mode
-- Background: Soft beige with white cards
-- Emphasis: Navy blue primary, gold accents
-- Text: Dark charcoal for contrast
-- Use case: Default, daytime usage
-
-### Dark Mode
-- Background: Very dark with slightly lighter cards
-- Emphasis: Light text on dark background
-- Text: Light gray for readability
-- Use case: Low-light/nighttime usage
-
-## Browser Support
-- Works on all modern browsers (Chrome, Firefox, Safari, Edge)
-- CSS variables fully supported
-- localStorage available on all modern browsers
-- Gracefully degrades if localStorage unavailable
-
-## Future Enhancements
-- Add scheduled/auto dark mode based on time
-- Add more theme options (high contrast, etc.)
-- Add theme preview before applying
-- Add custom theme builder

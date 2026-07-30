@@ -21,8 +21,10 @@ const SIDEBAR_SECTIONS = [
   {
     label: 'Profile',
     items: [
+      { id: 'profile', label: 'My profile', icon: 'ti-user' },
       { id: 'my-portfolio', label: 'My portfolio', icon: 'ti-briefcase' },
       { id: 'leaderboard', label: 'Leaderboard', icon: 'ti-trophy' },
+      { id: 'settings', label: 'Settings', icon: 'ti-settings' },
       { id: 'logout', label: 'Logout', icon: 'ti-logout' },
     ],
   },
@@ -43,7 +45,10 @@ export default function Sidebar({ user, activeItem = 'all-tasks', onItemClick })
 
   return (
     <aside className="sticky top-[52px] h-[calc(100vh-52px)] w-[225px] shrink-0 self-start overflow-y-auto">
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div 
+        onClick={() => onItemClick?.('profile')}
+        className="overflow-hidden rounded-lg border border-border bg-card cursor-pointer hover:border-muted transition-colors"
+      >
         <div className="relative h-14 bg-secondary/60">
           <div className="absolute -bottom-5 left-4 flex h-10 w-10 items-center justify-center rounded-full border-2 border-card bg-secondary text-sm font-semibold text-primary">
             {initials}
@@ -52,7 +57,7 @@ export default function Sidebar({ user, activeItem = 'all-tasks', onItemClick })
         <div className="px-4 pb-4 pt-7">
           <p className="truncate text-sm font-semibold text-foreground">{user?.name}</p>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {user?.branch} · {user?.department}
+            {user?.department || user?.branch}
           </p>
           <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-coin">
             <i className="ti ti-coin" aria-hidden="true" />

@@ -2,33 +2,42 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { verifyCollege, verifyStudentUid, verifyStudentOtp } from '@/lib/api'
-
-// Keep admin login static for now
-const STATIC_ADMIN_UID = 'admin@kjsce.edu'
-const STATIC_ADMIN_PASSWORD = 'admin123'
-
-const STATIC_ADMIN_USER = {
-  collegeCode: 'KJSCE',
-  uid: 'admin@kjsce.edu',
-  name: 'Admin User',
-  department: 'Administration',
-  role: 'admin',
-  photo: null,
-}
+import { 
+  verifyCollege, 
+  verifyStudentUid, 
+  verifyStudentOtp, 
+  verifyAdminUsername, 
+  verifyAdminLogin 
+} from '@/lib/api'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1)
+  // Steps: 
+  // 1: College Code
+  // 2: Role selection
+  // 3: Admin Username
+  // 4: Student UID
+  // 5: Success
+  // 6: Student OTP
+  // 7: Admin Password
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7>(1)
   const [role, setRole] = useState<'student' | 'admin'>('student')
   const [collegeCode, setCollegeCode] = useState('')
   const [collegeCodeError, setCollegeCodeError] = useState('')
+  
+  // Admin credentials
+  const [adminUid, setAdminUid] = useState('')
+  const [adminName, setAdminName] = useState('')
+  const [adminUidError, setAdminUidError] = useState('')
+  const [adminPassword, setAdminPassword] = useState('')
+  const [adminPasswordError, setAdminPasswordError] = useState('')
+
+  // Student credentials
   const [uid, setUid] = useState('')
   const [uidError, setUidError] = useState('')
   const [otp, setOtp] = useState(['', '', '', ''])
   const [otpError, setOtpError] = useState('')
-  const [adminPassword, setAdminPassword] = useState('')
-  const [adminPasswordError, setAdminPasswordError] = useState('')
+
   const [loading, setLoading] = useState(false)
   const otpRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null])
 
@@ -54,27 +63,58 @@ export default function LoginPage() {
   // Step 2: Role selection
   const handleRoleSelect = () => {
     if (role === 'admin') {
-      setStep(3) // Admin password step
+      setStep(3) // Step 3: Admin Username
     } else {
-      setStep(4) // Student UID step
+      setStep(4) // Step 4: Student UID
     }
   }
 
-  // Step 3: Admin password submission
-  const handleAdminPasswordSubmit = () => {
+  // Step 3: Admin Username validation
+  const handleAdminUidSubmit = async () => {
+    setAdminUidError('')
+    if (!adminUid) {
+      setAdminUidError('Please enter admin username or ID')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await verifyAdminUsername(collegeCode, adminUid)
+      if (res && res.name) {
+        setAdminName(res.name)
+      } else {
+        setAdminName('Wilson Rao')
+      }
+      setStep(7) // Step 7: Admin Password
+    } catch (error: any) {
+      setAdminUidError(error.message || 'Admin username or ID not found in database')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Step 7: Admin Password submission
+  const handleAdminPasswordSubmit = async () => {
     setAdminPasswordError('')
     if (!adminPassword) {
       setAdminPasswordError('Please enter admin password')
       return
     }
 
-    if (adminPassword !== STATIC_ADMIN_PASSWORD) {
-      setAdminPasswordError('Incorrect password. Please try again.')
-      return
+    setLoading(true)
+    try {
+      const response = await verifyAdminLogin(collegeCode, adminUid, adminPassword)
+      const adminData = response.admin
+      if (adminData && adminData.name) {
+        setAdminName(adminData.name)
+      }
+      localStorage.setItem('credimpact_user', JSON.stringify(adminData))
+      setStep(5)
+    } catch (error: any) {
+      setAdminPasswordError(error.message || 'Incorrect admin password')
+    } finally {
+      setLoading(false)
     }
-
-    localStorage.setItem('credimpact_user', JSON.stringify(STATIC_ADMIN_USER))
-    setStep(5)
   }
 
   // Step 4: Student UID validation
@@ -96,7 +136,7 @@ export default function LoginPage() {
     }
   }
 
-  // Step 5: Student OTP handling
+  // Step 6: Student OTP handling
   const handleOtpChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return
 
@@ -129,7 +169,6 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const response = await verifyStudentOtp(collegeCode, uid, otpCode)
-      // Store user in localStorage
       localStorage.setItem('credimpact_user', JSON.stringify(response.student))
       setStep(5)
     } catch (error: any) {
@@ -155,6 +194,10 @@ export default function LoginPage() {
     setStep(1)
     setCollegeCode('')
     setCollegeCodeError('')
+    setAdminUid('')
+    setAdminUidError('')
+    setAdminPassword('')
+    setAdminPasswordError('')
     setUid('')
     setUidError('')
   }
@@ -164,12 +207,13 @@ export default function LoginPage() {
       <div className="w-full max-w-[400px] rounded-[16px] border border-border bg-card p-10">
         {/* Step Indicator */}
         <div className="mb-6 text-center text-xs text-muted-foreground">
-          {step === 1 && "Step 1 of 4"}
-          {step === 2 && "Step 2 of 4"}
-          {step === 3 && "Step 3 of 4"}
-          {step === 4 && "Step 3 of 5"}
+          {step === 1 && "Step 1 of 4: College Code"}
+          {step === 2 && "Step 2 of 4: Select Role"}
+          {step === 3 && "Step 3 of 4: Admin Username"}
+          {step === 7 && "Step 4 of 4: Admin Password"}
+          {step === 4 && "Step 3 of 4: Student UID"}
+          {step === 6 && "Step 4 of 4: Verification Code"}
           {step === 5 && "Success!"}
-          {step === 6 && "Step 4 of 5"}
         </div>
 
         {/* Logo and Tagline */}
@@ -198,7 +242,7 @@ export default function LoginPage() {
                   setCollegeCodeError('')
                 }}
                 onKeyPress={(e) => e.key === 'Enter' && handleCollegeCodeContinue()}
-                placeholder="Enter your college code"
+                placeholder="Enter your college code (e.g. KJSCE, JHC)"
                 className="w-full rounded-[10px] border border-border bg-input px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
               {collegeCodeError && (
@@ -242,6 +286,7 @@ export default function LoginPage() {
               </label>
               <div className="space-y-3">
                 <button
+                  type="button"
                   onClick={() => setRole('student')}
                   className={`w-full rounded-[10px] border px-4 py-3 text-left transition-colors ${
                     role === 'student'
@@ -253,6 +298,7 @@ export default function LoginPage() {
                   <div className="text-xs text-muted-foreground mt-1">Access tasks and complete them</div>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setRole('admin')}
                   className={`w-full rounded-[10px] border px-4 py-3 text-left transition-colors ${
                     role === 'admin'
@@ -274,13 +320,67 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Step 3: Admin Password */}
+        {/* Step 3: Admin Username */}
         {step === 3 && (
           <div className="space-y-4">
+            <div className="mb-4">
+              <div className="inline-block rounded-full bg-secondary px-3 py-1 text-xs text-primary font-medium">
+                {collegeCode} • Admin
+              </div>
+            </div>
+
             <div>
               <button
                 onClick={() => setStep(2)}
-                className="text-sm font-medium text-primary hover:underline mb-4"
+                className="text-sm font-medium text-primary hover:underline mb-2"
+              >
+                ← Back
+              </button>
+            </div>
+
+            <div>
+              <label htmlFor="admin-uid" className="block text-sm font-medium text-foreground mb-2">
+                Admin Username or ID
+              </label>
+              <input
+                id="admin-uid"
+                type="text"
+                value={adminUid}
+                onChange={(e) => {
+                  setAdminUid(e.target.value)
+                  setAdminUidError('')
+                }}
+                onKeyPress={(e) => e.key === 'Enter' && handleAdminUidSubmit()}
+                placeholder="Enter admin ID e.g. ADM001"
+                className="w-full rounded-[10px] border border-border bg-input px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              {adminUidError && (
+                <p className="mt-2 text-xs text-destructive">{adminUidError}</p>
+              )}
+            </div>
+            <button
+              onClick={handleAdminUidSubmit}
+              disabled={loading}
+              className="w-full rounded-[10px] bg-primary px-4 py-3 h-11 font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Verifying...' : 'Continue'}
+            </button>
+          </div>
+        )}
+
+        {/* Step 7: Admin Password */}
+        {step === 7 && (
+          <div className="space-y-4">
+            <div className="mb-4">
+              <div className="inline-block rounded-full bg-secondary px-3 py-1 text-xs text-primary font-medium">
+                {collegeCode} • Admin: {adminName || adminUid}
+              </div>
+            </div>
+
+            <div>
+              <button
+                onClick={() => setStep(3)}
+                className="text-sm font-medium text-primary hover:underline mb-2"
               >
                 ← Back
               </button>
@@ -308,9 +408,10 @@ export default function LoginPage() {
             </div>
             <button
               onClick={handleAdminPasswordSubmit}
-              className="w-full rounded-[10px] bg-primary px-4 py-3 h-11 font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              disabled={loading}
+              className="w-full rounded-[10px] bg-primary px-4 py-3 h-11 font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              Login as Admin
+              {loading ? 'Logging in...' : 'Login as Admin'}
             </button>
           </div>
         )}
@@ -445,23 +546,22 @@ export default function LoginPage() {
 
             <div>
               <h2 className="text-xl font-medium text-foreground">
-                Welcome back {role === 'admin' ? STATIC_ADMIN_USER.name : (() => {
+                Welcome back {(() => {
                   const storedUser = localStorage.getItem('credimpact_user')
                   if (storedUser) return JSON.parse(storedUser).name
-                  return 'Student'
+                  return 'User'
                 })()}
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                {role === 'admin'
-                  ? STATIC_ADMIN_USER.department
-                  : (() => {
-                      const storedUser = localStorage.getItem('credimpact_user')
-                      if (storedUser) {
-                        const user = JSON.parse(storedUser)
-                        return `${user.department} • Semester ${user.semester}`
-                      }
-                      return ''
-                    })()}
+                {(() => {
+                  const storedUser = localStorage.getItem('credimpact_user')
+                  if (storedUser) {
+                    const u = JSON.parse(storedUser)
+                    if (u.role === 'admin') return `Admin · ${u.department}`
+                    return `${u.department} • Semester ${u.semester}`
+                  }
+                  return ''
+                })()}
               </p>
             </div>
 

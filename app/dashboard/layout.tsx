@@ -1,12 +1,21 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import TopNav from '@/components/TopNav'
 import RightPanel from '@/components/RightPanel'
+import {
+  getTasks,
+  getStudentApplications,
+  applyForTask,
+  completeTask,
+  getStudentPortfolio,
+  getStudentDetails,
+  getLeaderboard
+} from '@/lib/api'
 
-// Initial data
+// Initial data fallback
 export const TASKS = [
   {
     id: 1,
@@ -20,109 +29,12 @@ export const TASKS = [
     category: 'Design',
     status: 'open',
   },
-  {
-    id: 2,
-    title: 'Fix bug in student portal login page',
-    description: 'The login redirect is broken after recent server update. Need a React developer to debug and fix the issue',
-    department: 'IT Dept',
-    cc: 30,
-    deadline: 'Nov 22',
-    tags: ['React', 'JavaScript'],
-    urgent: true,
-    category: 'Coding',
-    status: 'open',
-  },
-  {
-    id: 3,
-    title: 'Write content for college newsletter',
-    description: 'Draft 3 short articles of 200 words each covering recent college events for the monthly newsletter',
-    department: 'Admin',
-    cc: 15,
-    deadline: 'Nov 30',
-    tags: ['Content Writing', 'Editing'],
-    urgent: false,
-    category: 'Content Writing',
-    status: 'open',
-  },
-  {
-    id: 4,
-    title: 'Edit video for Annual Report presentation',
-    description: 'Cut and compile 4 raw clips into a 3 minute department highlights reel with captions and transitions',
-    department: 'Mech Dept',
-    cc: 25,
-    deadline: 'Dec 2',
-    tags: ['Video Editing', 'Premiere'],
-    urgent: false,
-    category: 'Design',
-    status: 'open',
-  },
-  {
-    id: 5,
-    title: 'Volunteer at registration desk Cultural Fest',
-    description: 'Manage student check ins at the cultural fest registration counter from 9am to 1pm on Dec 5',
-    department: 'CSE Dept',
-    cc: 18,
-    deadline: 'Dec 5',
-    tags: ['Event Help', 'On Campus'],
-    urgent: false,
-    category: 'Event Help',
-    status: 'open',
-  },
-  {
-    id: 6,
-    title: 'Digitise 50 handwritten catalogue entries',
-    description: 'Type up scanned handwritten book entries into the library Excel sheet with high accuracy',
-    department: 'Library',
-    cc: 12,
-    deadline: 'Dec 10',
-    tags: ['Data Entry', 'Excel'],
-    urgent: false,
-    category: 'Data Entry',
-    status: 'open',
-  },
-  {
-    id: 7,
-    title: 'Create social media posts for placement cell',
-    description: 'Design 5 Instagram posts announcing upcoming placement drives with company logos and key details',
-    department: 'Placement Cell',
-    cc: 22,
-    deadline: 'Nov 25',
-    tags: ['Graphic Design', 'Instagram'],
-    urgent: true,
-    category: 'Design',
-    status: 'open',
-  },
-  {
-    id: 8,
-    title: 'Translate notice board announcements to Hindi',
-    description: 'Translate 8 official college announcements from English to Hindi for the Hindi notice board display',
-    department: 'Admin',
-    cc: 10,
-    deadline: 'Nov 27',
-    tags: ['Translation', 'Content Writing'],
-    urgent: false,
-    category: 'Content Writing',
-    status: 'open',
-  },
 ]
 
-const INITIAL_APPLIED_TASK_IDS = [2, 3]
-const INITIAL_COMPLETED_TASK_IDS = [1]
-const INITIAL_PORTFOLIO = [
-  {
-    id: 1,
-    title: 'Tech Fest 2024 Poster Design',
-    description: 'Designed the official poster for Tech Fest 2024',
-    ccEarned: 35,
-    date: 'Oct 15, 2024',
-    tags: ['Graphic Design', 'Canva'],
-  },
-]
-
-const TRANSACTIONS = [
-  { id: 1, type: 'earned', amount: 20, description: 'Poster design for Tech Fest 2024', date: 'Oct 15, 2024' },
-  { id: 2, type: 'earned', amount: 15, description: 'Content writing for newsletter', date: 'Oct 10, 2024' },
-]
+const INITIAL_APPLIED_TASK_IDS: number[] = []
+const INITIAL_COMPLETED_TASK_IDS: number[] = []
+const INITIAL_PORTFOLIO: any[] = []
+const TRANSACTIONS: any[] = []
 
 // Create Context
 interface DashboardContextType {
@@ -130,12 +42,14 @@ interface DashboardContextType {
   tasks: typeof TASKS
   appliedTaskIds: number[]
   completedTaskIds: number[]
-  portfolio: typeof INITIAL_PORTFOLIO
-  transactions: typeof TRANSACTIONS
+  portfolio: any[]
+  leaderboard: any[]
+  transactions: any[]
   searchQuery: string
   setSearchQuery: (query: string) => void
-  handleApply: (taskId: number) => void
-  handleMarkComplete: (taskId: number) => void
+  handleApply: (taskId: number) => Promise<void>
+  handleMarkComplete: (taskId: number) => Promise<void>
+  refreshData: () => Promise<void>
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined)
@@ -154,11 +68,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [tasks, setTasks] = useState(TASKS)
-  const [appliedTaskIds, setAppliedTaskIds] = useState(INITIAL_APPLIED_TASK_IDS)
-  const [completedTaskIds, setCompletedTaskIds] = useState(INITIAL_COMPLETED_TASK_IDS)
-  const [portfolio, setPortfolio] = useState(INITIAL_PORTFOLIO)
-  const [transactions, setTransactions] = useState(TRANSACTIONS)
+  const [tasks, setTasks] = useState<any[]>(TASKS)
+  const [appliedTaskIds, setAppliedTaskIds] = useState<number[]>(INITIAL_APPLIED_TASK_IDS)
+  const [completedTaskIds, setCompletedTaskIds] = useState<number[]>(INITIAL_COMPLETED_TASK_IDS)
+  const [portfolio, setPortfolio] = useState<any[]>(INITIAL_PORTFOLIO)
+  const [leaderboard, setLeaderboard] = useState<any[]>([])
+  const [transactions, setTransactions] = useState<any[]>(TRANSACTIONS)
   const [searchQuery, setSearchQuery] = useState('')
 
   // Determine active page from pathname
@@ -171,6 +86,79 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const activePage = getActivePageFromPath()
 
+  const refreshData = useCallback(async () => {
+    const storedUser = localStorage.getItem('credimpact_user')
+    if (!storedUser) return
+
+    try {
+      const parsedUser = JSON.parse(storedUser)
+      const studentUid = parsedUser.uid || parsedUser.studentid
+
+      // Load tasks from backend DB
+      const apiTasks = await getTasks().catch(() => null)
+      if (apiTasks && Array.isArray(apiTasks) && apiTasks.length > 0) {
+        setTasks(apiTasks)
+      }
+
+      // Load leaderboard from backend DB
+      const apiLeaderboard = await getLeaderboard().catch(() => null)
+      if (apiLeaderboard && Array.isArray(apiLeaderboard)) {
+        setLeaderboard(apiLeaderboard)
+      }
+
+      if (studentUid) {
+        // Load student fresh details
+        const freshUser = await getStudentDetails(studentUid).catch(() => null)
+        if (freshUser) {
+          const updatedUser = {
+            ...parsedUser,
+            ...freshUser,
+            branch: freshUser.department || parsedUser.branch || '',
+          }
+          setUser(updatedUser)
+          localStorage.setItem('credimpact_user', JSON.stringify(updatedUser))
+        }
+
+        // Load applications
+        const apps = await getStudentApplications(studentUid).catch(() => [])
+        if (Array.isArray(apps)) {
+          const appliedIds: number[] = []
+          const completedIds: number[] = []
+          const txList: any[] = []
+
+          apps.forEach((a: any) => {
+            const taskIdVal = a.taskId || a.taskid
+            if (a.status === 'Completed') {
+              completedIds.push(taskIdVal)
+              txList.push({
+                id: a.applicationid || taskIdVal,
+                type: 'earned',
+                amount: a.task?.cc || 50,
+                description: `Completed task: ${a.task?.title || 'Campus Task'}`,
+                date: a.applieddate || 'Recent'
+              })
+            } else {
+              appliedIds.push(taskIdVal)
+            }
+          })
+          setAppliedTaskIds(appliedIds)
+          setCompletedTaskIds(completedIds)
+          if (txList.length > 0) {
+            setTransactions(txList)
+          }
+        }
+
+        // Load portfolio
+        const portData = await getStudentPortfolio(studentUid).catch(() => null)
+        if (portData && Array.isArray(portData.items)) {
+          setPortfolio(portData.items)
+        }
+      }
+    } catch (err) {
+      console.error('Error refreshing dashboard realtime data:', err)
+    }
+  }, [])
+
   useEffect(() => {
     const storedUser = localStorage.getItem('credimpact_user')
     if (!storedUser) {
@@ -180,7 +168,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     try {
       const parsedUser = JSON.parse(storedUser)
-      // Ensure all properties are present
       setUser({
         ...parsedUser,
         branch: parsedUser.branch || parsedUser.department || '',
@@ -195,6 +182,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setLoading(false)
     }
   }, [router])
+
+  // Real-time polling effect (syncs database every 5 seconds)
+  useEffect(() => {
+    if (!loading && user) {
+      refreshData()
+      const interval = setInterval(() => {
+        refreshData()
+      }, 5000)
+      return () => clearInterval(interval)
+    }
+  }, [loading, user?.uid, refreshData])
 
   const handleSidebarItemClick = (itemId: string) => {
     if (itemId === 'logout') {
@@ -216,43 +214,49 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push('/dashboard/applied')
     } else if (itemId === 'portfolio') {
       router.push('/dashboard/my-portfolio')
+    } else if (itemId === 'profile') {
+      router.push('/dashboard/profile')
     }
   }
 
-  const handleApply = (taskId: number) => {
-    if (!appliedTaskIds.includes(taskId) && !completedTaskIds.includes(taskId)) {
-      setAppliedTaskIds([...appliedTaskIds, taskId])
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const handleApply = async (taskId: number) => {
+    if (!user) return
+    const studentUid = user.uid || user.studentid
+    if (!studentUid) return
+
+    try {
+      const res = await applyForTask(studentUid, taskId)
+      const msg = res?.message || 'Application Submitted'
+      setToastMessage({ type: 'success', text: msg })
+      setTimeout(() => setToastMessage(null), 4000)
+      await refreshData()
+    } catch (err: any) {
+      const msg = err.message || 'You have already applied for this task.'
+      setToastMessage({ type: 'error', text: msg })
+      setTimeout(() => setToastMessage(null), 4000)
+      if (!appliedTaskIds.includes(taskId) && !completedTaskIds.includes(taskId)) {
+        setAppliedTaskIds([...appliedTaskIds, taskId])
+      }
     }
   }
 
-  const handleMarkComplete = (taskId: number) => {
-    if (!completedTaskIds.includes(taskId)) {
-      setCompletedTaskIds([...completedTaskIds, taskId])
-      // Remove from applied if there
-      setAppliedTaskIds(appliedTaskIds.filter(id => id !== taskId))
-      // Add to transactions
-      const task = tasks.find(t => t.id === taskId)
-      if (task) {
-        setTransactions([
-          { id: Date.now(), type: 'earned', amount: task.cc, description: `Completed task: ${task.title}`, date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
-          ...transactions,
-        ])
-        // Add to portfolio
-        setPortfolio([
-          {
-            id: Date.now(),
-            title: task.title,
-            description: task.description,
-            ccEarned: task.cc,
-            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-            tags: task.tags,
-          },
-          ...portfolio,
-        ])
-        // Update user's CC balance
-        setUser((prev: any) => ({ ...prev, ccBalance: (prev.ccBalance || 0) + task.cc }))
-        // Update task status
-        setTasks(tasks.map(t => t.id === taskId ? { ...t, status: 'completed' } : t))
+  const handleMarkComplete = async (taskId: number) => {
+    if (!user) return
+    const studentUid = user.uid || user.studentid
+    if (!studentUid) return
+
+    try {
+      await completeTask(studentUid, taskId)
+      setToastMessage({ type: 'success', text: 'Task marked as complete!' })
+      setTimeout(() => setToastMessage(null), 3000)
+      await refreshData()
+    } catch (err) {
+      console.error('Error completing task:', err)
+      if (!completedTaskIds.includes(taskId)) {
+        setCompletedTaskIds([...completedTaskIds, taskId])
+        setAppliedTaskIds(appliedTaskIds.filter(id => id !== taskId))
       }
     }
   }
@@ -276,11 +280,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       appliedTaskIds,
       completedTaskIds,
       portfolio,
+      leaderboard,
       transactions,
       searchQuery,
       setSearchQuery,
       handleApply,
-      handleMarkComplete
+      handleMarkComplete,
+      refreshData
     }}>
       <div className="min-h-screen bg-background">
         <TopNav
@@ -290,6 +296,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
+
+        {toastMessage && (
+          <div className="fixed top-16 right-4 z-50 animate-bounce">
+            <div className={`rounded-xl px-4 py-2.5 shadow-lg border text-xs font-semibold flex items-center gap-2 ${toastMessage.type === 'success'
+                ? 'bg-green-600 border-green-500 text-white'
+                : 'bg-amber-600 border-amber-500 text-white'
+              }`}>
+              <i className={`ti ${toastMessage.type === 'success' ? 'ti-circle-check' : 'ti-alert-circle'} text-base`} aria-hidden="true" />
+              {toastMessage.text}
+            </div>
+          </div>
+        )}
+
         <div className="mx-auto max-w-[1128px] px-4 py-4">
           <div className="flex gap-4">
             <Sidebar

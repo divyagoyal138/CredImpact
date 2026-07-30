@@ -26,6 +26,25 @@ export const verifyCollege = async (collegeCode: string) => {
   });
 };
 
+// Admin login
+export const verifyAdminUsername = async (collegeCode: string, adminUid: string) => {
+  return fetchApi('/admin/verify-username', {
+    method: 'POST',
+    body: JSON.stringify({ collegeCode, adminUid }),
+  });
+};
+
+export const verifyAdminLogin = async (collegeCode: string, adminUid: string, password: string) => {
+  return fetchApi('/admin/login', {
+    method: 'POST',
+    body: JSON.stringify({ collegeCode, adminUid, password }),
+  });
+};
+
+export const getAdminDetails = async (adminId: string) => {
+  return fetchApi(`/admin/${adminId}`);
+};
+
 // Student login
 export const verifyStudentUid = async (collegeCode: string, studentUid: string) => {
   return fetchApi('/student/login/verify-uid', {
@@ -44,3 +63,63 @@ export const verifyStudentOtp = async (collegeCode: string, studentUid: string, 
 export const getStudentDetails = async (studentId: string) => {
   return fetchApi(`/student/${studentId}`);
 };
+
+export const updateStudentProfile = async (studentId: string, data: { email?: string; phone?: string; portfolioLink?: string }) => {
+  return fetchApi(`/student/${studentId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+};
+
+// Tasks API
+export const getTasks = async () => {
+  return fetchApi('/tasks');
+};
+
+export const createTask = async (taskData: { title: string; description: string; creditcoins: number; deadline?: string; createdby?: string }) => {
+  return fetchApi('/tasks', {
+    method: 'POST',
+    body: JSON.stringify(taskData),
+  });
+};
+
+// Applications API
+export const getStudentApplications = async (studentId: string) => {
+  return fetchApi(`/applications/student/${studentId}`);
+};
+
+export const getAdminApplications = async (adminId: string) => {
+  return fetchApi(`/admin/applications/${adminId}`);
+};
+
+export const applyForTask = async (studentId: string, taskId: number) => {
+  return fetchApi('/applications', {
+    method: 'POST',
+    body: JSON.stringify({ studentId, taskId }),
+  });
+};
+
+export const updateApplicationStatus = async (applicationId: number, status: 'Approved' | 'Rejected') => {
+  return fetchApi('/admin/applications/action', {
+    method: 'POST',
+    body: JSON.stringify({ applicationId, status }),
+  });
+};
+
+export const completeTask = async (studentId: string, taskId: number) => {
+  return fetchApi('/applications/complete', {
+    method: 'POST',
+    body: JSON.stringify({ studentId, taskId }),
+  });
+};
+
+// Portfolio API
+export const getStudentPortfolio = async (studentId: string) => {
+  return fetchApi(`/portfolio/${studentId}`);
+};
+
+// Leaderboard API
+export const getLeaderboard = async () => {
+  return fetchApi('/leaderboard');
+};
+

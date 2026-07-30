@@ -56,20 +56,18 @@ export default function TopNav({
                 key={link.id}
                 type="button"
                 onClick={() => onNavClick?.(link.id)}
-                className={`flex min-w-[64px] flex-col items-center rounded-md px-2 py-1 transition-colors ${
-                  isActive
+                className={`flex min-w-[64px] flex-col items-center rounded-md px-2 py-1 transition-colors ${isActive
                     ? 'text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
               >
                 <i
                   className={`ti ${link.icon} text-[20px] ${isActive ? 'text-primary' : ''}`}
                   aria-hidden="true"
                 />
                 <span
-                  className={`mt-0.5 hidden text-[11px] leading-none xl:block ${
-                    isActive ? 'font-semibold text-foreground' : ''
-                  }`}
+                  className={`mt-0.5 hidden text-[11px] leading-none xl:block ${isActive ? 'font-semibold text-foreground' : ''
+                    }`}
                 >
                   {link.label}
                 </span>
@@ -95,13 +93,14 @@ export default function TopNav({
           </button>
           <button
             type="button"
-            className="flex flex-col items-center rounded-md px-1 py-0.5 hover:bg-background"
-            title={user?.name}
+            onClick={() => onNavClick?.('profile')}
+            className="flex flex-col items-center rounded-md px-1.5 py-0.5 hover:bg-background transition-colors cursor-pointer"
+            title={`View profile for ${user?.name || 'User'}`}
           >
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-[10px] font-semibold text-primary">
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-[10px] font-semibold text-primary ring-1 ring-primary/20">
               {initials}
             </div>
-            <span className="mt-0.5 hidden text-[11px] text-muted-foreground xl:block">Me</span>
+            <span className="mt-0.5 hidden text-[11px] text-muted-foreground xl:block font-medium">Me</span>
           </button>
         </div>
       </div>
