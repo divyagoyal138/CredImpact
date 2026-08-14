@@ -7,7 +7,7 @@ const SIDEBAR_SECTIONS = [
       { id: 'all-tasks', label: 'All tasks', icon: 'ti-list-check' },
       { id: 'recommended', label: 'Recommended', icon: 'ti-star' },
       { id: 'urgent', label: 'Urgent', icon: 'ti-alert-circle' },
-      { id: 'events', label: 'Events', icon: 'ti-calendar-event' },
+      { id: 'analytics', label: 'Analytics', icon: 'ti-chart-bar' },
     ],
   },
   {
@@ -15,6 +15,7 @@ const SIDEBAR_SECTIONS = [
     items: [
       { id: 'applied', label: 'Applied', icon: 'ti-send' },
       { id: 'completed', label: 'Completed', icon: 'ti-circle-check' },
+      { id: 'chat', label: 'Admin Chat', icon: 'ti-message-dots' },
       { id: 'cc-wallet', label: 'CC wallet', icon: 'ti-wallet' },
     ],
   },

@@ -4,8 +4,12 @@ import TaskCard from '@/components/TaskCard'
 import { useDashboard } from '../layout'
 
 export default function UrgentPage() {
-  const { tasks } = useDashboard()
-  const urgentTasks = tasks.filter(task => task.urgent)
+  const { tasks, completedTaskIds } = useDashboard()
+  const urgentTasks = tasks.filter(task => 
+    !completedTaskIds.includes(task.id) && 
+    task.status?.toLowerCase() !== 'completed' && 
+    task.urgent
+  )
 
   return (
     <div>

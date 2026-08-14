@@ -4,8 +4,12 @@ import TaskCard from '@/components/TaskCard'
 import { useDashboard } from '../layout'
 
 export default function AppliedPage() {
-  const { tasks, appliedTaskIds } = useDashboard()
-  const appliedTasks = tasks.filter(task => appliedTaskIds.includes(task.id))
+  const { tasks, appliedTaskIds, completedTaskIds } = useDashboard()
+  const appliedTasks = tasks.filter(task => 
+    appliedTaskIds.includes(task.id) && 
+    !completedTaskIds.includes(task.id) && 
+    task.status?.toLowerCase() !== 'completed'
+  )
 
   return (
     <div>

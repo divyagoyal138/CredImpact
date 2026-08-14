@@ -3,7 +3,7 @@
 import { useDashboard } from '@/app/dashboard/layout'
 
 export default function TaskCard({ task, showMarkComplete = false }) {
-  const { appliedTaskIds, completedTaskIds, handleApply, handleMarkComplete } = useDashboard()
+  const { appliedTaskIds, completedTaskIds, handleApply, handleUnapply, handleMarkComplete } = useDashboard()
 
   const isApplied = appliedTaskIds.includes(task.id)
   const isCompleted = completedTaskIds.includes(task.id)
@@ -59,11 +59,18 @@ export default function TaskCard({ task, showMarkComplete = false }) {
             Completed
           </span>
         ) : isApplied ? (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <span className="rounded-full px-4 py-1.5 text-xs font-semibold border border-accent bg-accent/10 text-accent flex items-center gap-1">
               <i className="ti ti-check text-sm" aria-hidden="true"></i>
               Applied
             </span>
+            <button
+              type="button"
+              onClick={() => handleUnapply(task.id)}
+              className="rounded-full px-4 py-1.5 text-xs font-semibold border border-rose-600 bg-rose-600 text-white hover:bg-rose-700"
+            >
+              Unapply
+            </button>
             {showMarkComplete && (
               <button
                 type="button"

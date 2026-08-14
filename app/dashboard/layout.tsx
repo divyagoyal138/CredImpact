@@ -9,6 +9,7 @@ import {
   getTasks,
   getStudentApplications,
   applyForTask,
+  deleteApplication,
   completeTask,
   getStudentPortfolio,
   getStudentDetails,
@@ -45,9 +46,11 @@ interface DashboardContextType {
   portfolio: any[]
   leaderboard: any[]
   transactions: any[]
+  notifications: any[]
   searchQuery: string
   setSearchQuery: (query: string) => void
   handleApply: (taskId: number) => Promise<void>
+  handleUnapply: (taskId: number) => Promise<void>
   handleMarkComplete: (taskId: number) => Promise<void>
   refreshData: () => Promise<void>
 }
@@ -74,6 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [portfolio, setPortfolio] = useState<any[]>(INITIAL_PORTFOLIO)
   const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [transactions, setTransactions] = useState<any[]>(TRANSACTIONS)
+  const [notifications, setNotifications] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState('')
 
   // Determine active page from pathname
@@ -85,6 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const activePage = getActivePageFromPath()
+  const activeTopNav = activePage === 'all-tasks' ? 'explore' : activePage
 
   const refreshData = useCallback(async () => {
     const storedUser = localStorage.getItem('credimpact_user')
@@ -125,9 +130,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           const appliedIds: number[] = []
           const completedIds: number[] = []
           const txList: any[] = []
+          const newNotifications: any[] = []
 
+          const extraTasksFromApps: any[] = []
           apps.forEach((a: any) => {
             const taskIdVal = a.taskId || a.taskid
+            if (a.task && a.task.title) {
+              extraTasksFromApps.push({
+                id: taskIdVal,
+                taskid: taskIdVal,
+                title: a.task.title,
+                description: a.task.description || '',
+                cc: a.task.cc || 50,
+                creditcoins: a.task.cc || 50,
+                deadline: a.task.deadline || 'Completed',
+                status: a.status,
+                department: a.task.department || 'Campus',
+                urgent: false,
+                category: a.task.category || 'General',
+                tags: a.task.tags || ['Completed']
+              })
+            }
+
             if (a.status === 'Completed') {
               completedIds.push(taskIdVal)
               txList.push({
@@ -140,9 +164,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             } else {
               appliedIds.push(taskIdVal)
             }
+
+            const approverName = a.task?.createdby || 'Faculty'
+            if (a.status === 'Approved') {
+              newNotifications.push({
+                id: `approved-${taskIdVal}-${a.applicationid || ''}`,
+                type: `approved`,
+                title: a.task?.title || 'Task approved',
+                text: `Your application for "${a.task?.title || 'this task'}" has been approved. Admin chat unlocked!`,
+                approver: approverName,
+                taskId: taskIdVal
+              })
+            }
+
+            if (a.status === 'Pending') {
+              newNotifications.push({
+                id: `reminder-${taskIdVal}-${a.applicationid || ''}`,
+                type: 'reminder',
+                title: a.task?.title || 'Task reminder',
+                text: `Reminder: "${a.task?.title || 'this task'}" is still pending.`,
+                approver: approverName,
+                taskId: taskIdVal
+              })
+            }
           })
+
           setAppliedTaskIds(appliedIds)
           setCompletedTaskIds(completedIds)
+          setNotifications(newNotifications)
+
+          if (extraTasksFromApps.length > 0) {
+            setTasks((prevTasks) => {
+              const taskMap = new Map(prevTasks.map(t => [t.id, t]))
+              extraTasksFromApps.forEach(t => {
+                if (!taskMap.has(t.id)) {
+                  taskMap.set(t.id, t)
+                }
+              })
+              return Array.from(taskMap.values())
+            })
+          }
           if (txList.length > 0) {
             setTransactions(txList)
           }
@@ -212,6 +273,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push('/dashboard')
     } else if (itemId === 'my-tasks') {
       router.push('/dashboard/applied')
+    } else if (itemId === 'analytics') {
+      router.push('/dashboard/analytics')
     } else if (itemId === 'portfolio') {
       router.push('/dashboard/my-portfolio')
     } else if (itemId === 'profile') {
@@ -230,6 +293,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const res = await applyForTask(studentUid, taskId)
       const msg = res?.message || 'Application Submitted'
       setToastMessage({ type: 'success', text: msg })
+      setAppliedTaskIds((prev) => (prev.includes(taskId) ? prev : [...prev, taskId]))
       setTimeout(() => setToastMessage(null), 4000)
       await refreshData()
     } catch (err: any) {
@@ -239,6 +303,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!appliedTaskIds.includes(taskId) && !completedTaskIds.includes(taskId)) {
         setAppliedTaskIds([...appliedTaskIds, taskId])
       }
+    }
+  }
+
+  const handleUnapply = async (taskId: number) => {
+    if (!user) return
+    const studentUid = user.uid || user.studentid
+    if (!studentUid) return
+
+    try {
+      const res = await deleteApplication(studentUid, taskId)
+      const msg = res?.message || 'Application withdrawn successfully'
+      setToastMessage({ type: 'success', text: msg })
+      setAppliedTaskIds((prev) => prev.filter((id) => id !== taskId))
+      setTimeout(() => setToastMessage(null), 4000)
+      await refreshData()
+    } catch (err: any) {
+      const msg = err.message || 'Unable to withdraw application.'
+      setToastMessage({ type: 'error', text: msg })
+      setTimeout(() => setToastMessage(null), 4000)
     }
   }
 
@@ -282,19 +365,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       portfolio,
       leaderboard,
       transactions,
+      notifications,
       searchQuery,
       setSearchQuery,
       handleApply,
+      handleUnapply,
       handleMarkComplete,
       refreshData
     }}>
       <div className="min-h-screen bg-background">
         <TopNav
           user={user}
-          activeNav="explore"
+          activeNav={activeTopNav}
           onNavClick={handleTopNavClick}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          notifications={notifications}
         />
 
         {toastMessage && (
@@ -316,10 +402,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               activeItem={activePage}
               onItemClick={handleSidebarItemClick}
             />
-            <main className="min-w-0 flex-1 max-w-[640px]">
+            <main className={`min-w-0 flex-1 ${activePage === 'chat' ? 'max-w-[870px]' : 'max-w-[640px]'}`}>
               {children}
             </main>
-            <RightPanel />
+            {activePage !== 'chat' && <RightPanel />}
           </div>
         </div>
       </div>

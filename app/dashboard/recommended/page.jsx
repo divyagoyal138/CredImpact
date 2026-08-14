@@ -4,8 +4,12 @@ import TaskCard from '@/components/TaskCard'
 import { useDashboard } from '../layout'
 
 export default function RecommendedPage() {
-  const { tasks } = useDashboard()
-  const recommendedTasks = tasks.filter(task => task.category === 'Design' || task.category === 'Coding')
+  const { tasks, completedTaskIds } = useDashboard()
+  const recommendedTasks = tasks.filter(task => 
+    !completedTaskIds.includes(task.id) && 
+    task.status?.toLowerCase() !== 'completed' &&
+    (task.category === 'Design' || task.category === 'Coding')
+  )
 
   return (
     <div>

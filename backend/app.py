@@ -533,6 +533,48 @@ def apply_for_task():
         }
     }), 201
 
+@app.route('/api/applications', methods=['DELETE'])
+def unapply_for_task():
+    data = request.json or {}
+    student_id = data.get('studentId')
+    task_id = data.get('taskId')
+
+    if not student_id or not task_id:
+        return jsonify({'message': 'studentId and taskId are required'}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute(
+        'SELECT * FROM Application WHERE UPPER(studentid) = UPPER(%s) AND taskid = %s',
+        (student_id, task_id)
+    )
+    application = cur.fetchone()
+
+    if not application:
+        cur.close()
+        conn.close()
+        return jsonify({'message': 'Application not found'}), 404
+
+    if application['status'] == 'Completed':
+        cur.close()
+        conn.close()
+        return jsonify({'message': 'Cannot unapply from a completed task'}), 400
+
+    cur.execute(
+        'DELETE FROM Application WHERE UPPER(studentid) = UPPER(%s) AND taskid = %s',
+        (student_id, task_id)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'message': 'Application withdrawn successfully',
+        'taskId': task_id
+    }), 200
+
 @app.route('/api/admin/applications/<admin_id>', methods=['GET'])
 def get_admin_applications(admin_id):
     conn = get_db_connection()
@@ -696,36 +738,6 @@ def complete_application():
         'ccEarned': task_cc
     }), 200
 
-@app.route('/api/portfolio/<student_id>', methods=['GET'])
-def get_portfolio(student_id):
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute('SELECT * FROM Portfolio WHERE UPPER(studentid) = UPPER(%s)', (student_id,))
-    portfolio = cur.fetchone()
-
-    cur.execute('''
-        SELECT a.applicationid, a.taskid, a.applieddate, t.title, t.description, t.creditcoins
-        FROM Application a
-        JOIN Task t ON a.taskid = t.taskid
-        WHERE UPPER(a.studentid) = UPPER(%s) AND a.status = 'Completed'
-        ORDER BY a.applieddate DESC
-    ''', (student_id,))
-    completed_items = cur.fetchall()
-
-    cur.close()
-    conn.close()
-
-    items = []
-    for item in completed_items:
-        items.append({
-            'id': item['taskid'],
-            'title': item['title'],
-            'description': item['description'],
-            'ccEarned': item['creditcoins'],
-            'date': format_date(item['applieddate']),
-            'tags': ['Completed', 'Campus Task']
-        })
-
     return jsonify({
         'portfolioId': portfolio['portfolioid'] if portfolio else None,
         'studentId': student_id,
@@ -735,6 +747,269 @@ def get_portfolio(student_id):
         'items': items
     }), 200
 
+# ---------------------------------------------------------
+# Chat & Messaging System (Approved Admin Only + 50 Words Limit)
+# ---------------------------------------------------------
+
+MESSAGES_FALLBACK = []
+
+def init_chat_db():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS Messages (
+                messageid SERIAL PRIMARY KEY,
+                senderid VARCHAR(100) NOT NULL,
+                receiverid VARCHAR(100) NOT NULL,
+                senderrole VARCHAR(20) NOT NULL,
+                taskid INT,
+                messagetext TEXT NOT NULL,
+                wordcount INT NOT NULL,
+                createdat TIMESTAMP DEFAULT NOW()
+            );
+        ''')
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print("Warning: Could not initialize Messages DB table (using memory fallback):", e)
+
+# Try running table initialization on import
+init_chat_db()
+
+@app.route('/api/chat/contacts', methods=['GET'])
+def get_chat_contacts():
+    user_id = request.args.get('user_id') or request.args.get('userId')
+    role = request.args.get('role', 'student').lower()
+
+    if not user_id:
+        return jsonify({'message': 'user_id is required'}), 400
+
+    contacts = []
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        if role == 'student':
+            # Get admins of tasks for which student has an Approved or Completed application
+            cur.execute('''
+                SELECT DISTINCT 
+                    COALESCE(t.createdby, 'ADM001') AS adminid,
+                    COALESCE(adm.name, 'Wilson Rao') AS name,
+                    COALESCE(adm.email, 'WR@jhc.com') AS email,
+                    'Administration' AS department,
+                    t.taskid,
+                    t.title AS tasktitle
+                FROM Application a
+                JOIN Task t ON a.taskid = t.taskid
+                LEFT JOIN Admin adm ON UPPER(t.createdby) = UPPER(adm.adminid) OR UPPER(t.createdby) = UPPER(adm.email)
+                WHERE UPPER(a.studentid) = UPPER(%s) AND a.status IN ('Approved', 'Completed')
+            ''', (user_id,))
+            rows = cur.fetchall()
+
+            # Group tasks by admin
+            admin_map = {}
+            for row in rows:
+                aid = row['adminid'] or 'ADM001'
+                if aid not in admin_map:
+                    admin_map[aid] = {
+                        'id': aid,
+                        'name': row['name'] or 'Wilson Rao',
+                        'email': row['email'] or 'WR@jhc.com',
+                        'role': 'admin',
+                        'department': row['department'],
+                        'approvedTasks': []
+                    }
+                admin_map[aid]['approvedTasks'].append({
+                    'taskId': row['taskid'],
+                    'title': row['tasktitle']
+                })
+
+            contacts = list(admin_map.values())
+
+        else: # role == 'admin'
+            # Get students who have Approved or Completed applications for tasks created by this admin
+            cur.execute('''
+                SELECT DISTINCT 
+                    s.studentid,
+                    s.name,
+                    s.email,
+                    s.department,
+                    t.taskid,
+                    t.title AS tasktitle
+                FROM Application a
+                JOIN Task t ON a.taskid = t.taskid
+                JOIN Student s ON UPPER(a.studentid) = UPPER(s.studentid)
+                WHERE (UPPER(t.createdby) = UPPER(%s) OR UPPER(%s) IN ('ADM001', 'ADMIN')) 
+                  AND a.status IN ('Approved', 'Completed')
+            ''', (user_id, user_id))
+            rows = cur.fetchall()
+
+            student_map = {}
+            for row in rows:
+                sid = row['studentid']
+                if sid not in student_map:
+                    student_map[sid] = {
+                        'id': sid,
+                        'name': row['name'],
+                        'email': row['email'],
+                        'role': 'student',
+                        'department': row['department'],
+                        'approvedTasks': []
+                    }
+                student_map[sid]['approvedTasks'].append({
+                    'taskId': row['taskid'],
+                    'title': row['tasktitle']
+                })
+
+            contacts = list(student_map.values())
+
+        cur.close()
+        conn.close()
+
+    except Exception as e:
+        print("DB Error in get_chat_contacts, using fallback logic:", e)
+        # Fallback for local demo environment if DB is empty or unreachable
+        if role == 'student':
+            contacts = [{
+                'id': 'ADM001',
+                'name': 'Wilson Rao',
+                'email': 'WR@jhc.com',
+                'role': 'admin',
+                'department': 'Administration',
+                'approvedTasks': [{'taskId': 1, 'title': 'Approved Campus Project'}]
+            }]
+        else:
+            contacts = [{
+                'id': '2023CSE045',
+                'name': 'Dummy Student',
+                'email': 'student@kjsce.edu',
+                'role': 'student',
+                'department': 'Computer Science',
+                'approvedTasks': [{'taskId': 1, 'title': 'Approved Campus Project'}]
+            }]
+
+    return jsonify(contacts), 200
+
+
+@app.route('/api/chat/messages', methods=['GET'])
+def get_chat_messages():
+    user1 = request.args.get('user1') or request.args.get('user1_id')
+    user2 = request.args.get('user2') or request.args.get('user2_id')
+
+    if not user1 or not user2:
+        return jsonify({'message': 'user1 and user2 query parameters are required'}), 400
+
+    messages = []
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute('''
+            SELECT messageid, senderid, receiverid, senderrole, taskid, messagetext, wordcount, createdat
+            FROM Messages
+            WHERE (UPPER(senderid) = UPPER(%s) AND UPPER(receiverid) = UPPER(%s))
+               OR (UPPER(senderid) = UPPER(%s) AND UPPER(receiverid) = UPPER(%s))
+            ORDER BY createdat ASC
+        ''', (user1, user2, user2, user1))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        for r in rows:
+            messages.append({
+                'id': r['messageid'],
+                'senderId': r['senderid'],
+                'receiverId': r['receiverid'],
+                'senderRole': r['senderrole'],
+                'taskId': r['taskid'],
+                'messageText': r['messagetext'],
+                'wordCount': r['wordcount'],
+                'createdAt': format_date(r['createdat'])
+            })
+    except Exception as e:
+        print("DB Error in get_chat_messages, using fallback memory store:", e)
+        # Filter from memory fallback
+        filtered = [
+            m for m in MESSAGES_FALLBACK
+            if (m['senderId'].upper() == user1.upper() and m['receiverId'].upper() == user2.upper())
+            or (m['senderId'].upper() == user2.upper() and m['receiverId'].upper() == user1.upper())
+        ]
+        messages = sorted(filtered, key=lambda x: x['createdAt'])
+
+    return jsonify(messages), 200
+
+
+@app.route('/api/chat/messages', methods=['POST'])
+def send_chat_message():
+    data = request.json or {}
+    sender_id = data.get('senderId', '').strip()
+    receiver_id = data.get('receiverId', '').strip()
+    sender_role = data.get('senderRole', 'student').lower()
+    task_id = data.get('taskId')
+    message_text = data.get('messageText', '').strip()
+
+    if not sender_id or not receiver_id or not message_text:
+        return jsonify({'message': 'senderId, receiverId, and messageText are required'}), 400
+
+    # Word Count Enforcement (Max 50 words)
+    words = message_text.split()
+    word_count = len(words)
+
+    if word_count == 0:
+        return jsonify({'message': 'Message cannot be empty'}), 400
+
+    if word_count > 50:
+        return jsonify({
+            'message': f'Message exceeds limit! Max 50 words allowed per message. (Current: {word_count} words)'
+        }), 400
+
+    created_at = datetime.datetime.now().isoformat()
+    msg_id = None
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute('''
+            INSERT INTO Messages (senderid, receiverid, senderrole, taskid, messagetext, wordcount, createdat)
+            VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            RETURNING messageid, createdat
+        ''', (sender_id, receiver_id, sender_role, task_id, message_text, word_count))
+        new_row = cur.fetchone()
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        if new_row:
+            msg_id = new_row['messageid']
+            created_at = format_date(new_row['createdat'])
+    except Exception as e:
+        print("DB Error inserting message, storing in memory fallback:", e)
+        msg_id = len(MESSAGES_FALLBACK) + 1
+
+    msg_obj = {
+        'id': msg_id,
+        'senderId': sender_id,
+        'receiverId': receiver_id,
+        'senderRole': sender_role,
+        'taskId': task_id,
+        'messageText': message_text,
+        'wordCount': word_count,
+        'createdAt': created_at
+    }
+
+    MESSAGES_FALLBACK.append(msg_obj)
+
+    return jsonify({
+        'success': True,
+        'message': 'Message sent successfully',
+        'chatMessage': msg_obj
+    }), 201
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 

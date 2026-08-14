@@ -7,11 +7,15 @@ import { TASKS, useDashboard } from './layout'
 const FILTERS = ['All', 'Design', 'Coding', 'Content Writing', 'Event Help', 'Data Entry']
 
 export default function DiscoverPage() {
-  const { tasks, searchQuery } = useDashboard()
+  const { tasks, searchQuery, completedTaskIds } = useDashboard()
   const [activeFilter, setActiveFilter] = useState('All')
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
+      // Exclude completed tasks so they only appear under Completed
+      if (completedTaskIds.includes(task.id) || task.status?.toLowerCase() === 'completed') {
+        return false
+      }
       const matchesFilter = activeFilter === 'All' || task.category === activeFilter
       if (!matchesFilter) return false
       if (!searchQuery.trim()) return true
@@ -19,7 +23,7 @@ export default function DiscoverPage() {
       const inTags = task.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
       return inTitle || inTags
     })
-  }, [activeFilter, searchQuery, tasks])
+  }, [activeFilter, searchQuery, tasks, completedTaskIds])
 
   return (
     <div>

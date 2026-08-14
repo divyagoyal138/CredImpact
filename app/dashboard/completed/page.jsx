@@ -5,7 +5,10 @@ import { useDashboard } from '../layout'
 
 export default function CompletedPage() {
   const { tasks, completedTaskIds } = useDashboard()
-  const completedTasks = tasks.filter(task => completedTaskIds.includes(task.id))
+  const completedTasks = tasks.filter(task => 
+    completedTaskIds.includes(task.id) || 
+    task.status?.toLowerCase() === 'completed'
+  )
 
   return (
     <div>

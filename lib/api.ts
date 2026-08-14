@@ -98,7 +98,12 @@ export const applyForTask = async (studentId: string, taskId: number) => {
     body: JSON.stringify({ studentId, taskId }),
   });
 };
-
+export const deleteApplication = async (studentId: string, taskId: number) => {
+  return fetchApi('/applications', {
+    method: 'DELETE',
+    body: JSON.stringify({ studentId, taskId }),
+  })
+};
 export const updateApplicationStatus = async (applicationId: number, status: 'Approved' | 'Rejected') => {
   return fetchApi('/admin/applications/action', {
     method: 'POST',
@@ -122,4 +127,27 @@ export const getStudentPortfolio = async (studentId: string) => {
 export const getLeaderboard = async () => {
   return fetchApi('/leaderboard');
 };
+
+// Chat API
+export const getChatContacts = async (userId: string, role: 'student' | 'admin') => {
+  return fetchApi(`/chat/contacts?user_id=${encodeURIComponent(userId)}&role=${role}`);
+};
+
+export const getChatMessages = async (user1: string, user2: string) => {
+  return fetchApi(`/chat/messages?user1=${encodeURIComponent(user1)}&user2=${encodeURIComponent(user2)}`);
+};
+
+export const sendChatMessage = async (data: {
+  senderId: string;
+  receiverId: string;
+  senderRole: 'student' | 'admin';
+  messageText: string;
+  taskId?: number;
+}) => {
+  return fetchApi('/chat/messages', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
 
