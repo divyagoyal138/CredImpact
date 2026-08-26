@@ -402,10 +402,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               activeItem={activePage}
               onItemClick={handleSidebarItemClick}
             />
-            <main className={`min-w-0 flex-1 ${activePage === 'chat' ? 'max-w-[870px]' : 'max-w-[640px]'}`}>
+            <main className={`min-w-0 flex-1 ${activePage === 'chat' || activePage === 'analytics' ? 'max-w-[870px]' : 'max-w-[640px]'}`}>
               {children}
             </main>
-            {activePage !== 'chat' && <RightPanel />}
+            {activePage !== 'chat' && activePage !== 'analytics' && <RightPanel />}
           </div>
         </div>
       </div>

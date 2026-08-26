@@ -151,28 +151,28 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="space-y-5 pb-8 w-full min-w-0 overflow-hidden">
+    <div className="space-y-5 pb-8 w-full min-w-0">
       {/* Top Header with Save As Dropdown */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-md">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0">
           <div className="min-w-0 space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-primary/10 text-primary">
-                <i className="ti ti-chart-dots text-xl" aria-hidden="true" />
+            <div className="flex items-center gap-2.5">
+              <span className="p-2.5 rounded-xl bg-primary/15 text-primary shadow-xs">
+                <i className="ti ti-chart-dots text-2xl" aria-hidden="true" />
               </span>
-              <h1 className="text-xl font-bold text-foreground truncate">
+              <h1 className="text-2xl font-extrabold text-foreground tracking-tight truncate">
                 Advanced Performance & Task Analytics
               </h1>
             </div>
-            <p className="text-xs text-muted-foreground truncate pl-1">
-              Real-time velocity tracking, completion metrics, and CreditCoin reward distribution.
+            <p className="text-xs font-medium text-muted-foreground truncate pl-0.5">
+              Real-time velocity tracking, completion metrics, domain share, and CreditCoin reward distribution.
             </p>
           </div>
 
           {/* Save As Export Dropdown */}
           <div className="flex items-center gap-3 shrink-0 self-start md:self-auto">
-            <span className="hidden sm:flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-semibold text-primary">
-              <span className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
+            <span className="hidden sm:flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-3.5 py-1.5 text-xs font-bold text-primary shadow-2xs">
+              <span className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse shrink-0" />
               Live Sync
             </span>
             <ExportDropdown getExportData={getExportData} label="Save As..." />
