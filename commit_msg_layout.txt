@@ -1,1 +1,0 @@
-Widen analytics page container to 870px and enhance text contrast and visibility
