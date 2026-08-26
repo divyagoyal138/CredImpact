@@ -39,6 +39,7 @@ export default function LoginPage() {
   const [otpError, setOtpError] = useState('')
 
   const [loading, setLoading] = useState(false)
+  const [otpInfoMessage, setOtpInfoMessage] = useState('')
   const otpRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null])
 
   // Step 1: College Code validation
@@ -127,7 +128,10 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      await verifyStudentUid(collegeCode, uid)
+      const res = await verifyStudentUid(collegeCode, uid)
+      if (res && res.message) {
+        setOtpInfoMessage(res.message)
+      }
       setStep(6)
     } catch (error: any) {
       setUidError(error.message || 'UID not registered in college records')
@@ -478,7 +482,7 @@ export default function LoginPage() {
 
             <div className="text-center">
               <p className="text-sm text-muted-foreground">
-                Verification code sent to your registered phone
+                {otpInfoMessage || 'Verification code sent to your registered phone'}
               </p>
             </div>
 

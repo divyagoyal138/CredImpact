@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS Student (
     creditcoins INT DEFAULT 0,
     collegecode VARCHAR(50),
     otp VARCHAR(10),
+    otp_session VARCHAR(100),
     createdat TIMESTAMP DEFAULT NOW()
 );
 
