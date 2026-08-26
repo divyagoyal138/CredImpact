@@ -7,6 +7,7 @@ import { getTasks, createTask, getAdminDetails, getAdminApplications, updateAppl
 import AreaChart from '@/components/charts/AreaChart'
 import DonutChart from '@/components/charts/DonutChart'
 import BarChart from '@/components/charts/BarChart'
+import ExportDropdown from '@/components/analytics/ExportDropdown'
 
 type Task = {
   id: number
@@ -2399,10 +2400,41 @@ export default function AdminDashboard() {
                   Real-time analytics for tasks posted by {adminName} ({adminId}).
                 </p>
               </div>
-              <span className="self-start sm:self-auto rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-semibold text-primary flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                Live Admin Sync
-              </span>
+              <div className="flex items-center gap-3 shrink-0 self-start sm:self-auto">
+                <span className="hidden sm:flex rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-semibold text-primary items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  Live Admin Sync
+                </span>
+                <ExportDropdown
+                  label="Save As..."
+                  getExportData={() => ({
+                    title: 'Admin Analytics & Task Intelligence Report',
+                    subtitle: `Real-time catalog analytics for Administrator ${adminName} (${adminId})`,
+                    generatedBy: `${adminName} (${adminId})`,
+                    dateStr: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                    metrics: [
+                      { label: 'Tasks Posted', value: tasks.length, description: 'Active Catalog Tasks' },
+                      { label: 'Open Applications', value: pendingAppsCount, description: 'Pending Review' },
+                      { label: 'Approved Applications', value: applicationStatusCounts['Approved'] || 0, description: 'Approved by Admin' },
+                      { label: 'Completed Tasks', value: applicationStatusCounts['Completed'] || 0, description: 'Finished & Awarded' }
+                    ],
+                    categoryBreakdown: applicationDonutData.map((c: any) => ({
+                      name: c.name,
+                      value: c.value,
+                      percentage: c.percentage
+                    })),
+                    tableData: applications.map(a => ({
+                      'Application ID': a.applicationID,
+                      'Student ID': a.studentID,
+                      'Student Name': a.name,
+                      'Task ID': a.taskID,
+                      'Task Title': a.title,
+                      'Status': a.status,
+                      'Applied Date': a.appliedDate
+                    }))
+                  })}
+                />
+              </div>
             </div>
 
             {/* KPI Cards */}

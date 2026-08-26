@@ -1,1 +1,0 @@
-Add 2Factor.in SMS OTP integration and database OTP authentication
