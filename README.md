@@ -19,16 +19,22 @@
   - **My Portfolio**: Showcase verified achievements, skills, and activity records.
   - **CC Wallet**: Manage and view transactions of earned CreditCoins.
 
-- **Admin Dashboard**
-  - Institutional administrative portal (`/admin-dashboard`) for managing campus-wide metrics, student data, and activity approvals.
+- **Admin Dashboard & Class CC Allocation**
+  - Institutional administrative portal (`/admin-dashboard`) with 6 core navigation sections:
+    1. **Manage Tasks**: Task creation, filter by status, and per-task **View Applicants** count & filter button.
+    2. **View Applicants**: Directory table with task dropdown filter, status filter, and **Student Hover Preview Popovers** showing student ID, existing CC, class, semester, and email.
+    3. **Analytics**: Institutional metric breakdown, status donuts, and department distribution charts.
+    4. **Student Chat (Approved)**: Real-time messaging with approved applicants (50-word cap enforcement).
+    5. **CC Allocation to Class**: Edit task CC reward, enter venue location, create inline new events (`+ Add New Event`), filter by class/department, and grant CC to selected student rosters.
+    6. **Allocation History**: Audit directory with search filter and tap-to-inspect 2-column view (event details, venue, timestamp, allocating admin, and student recipient list).
 
 - **Theme System (Light & Dark Mode)**
-  - Seamless theme toggle powered by React Context.
-  - Automatic system theme detection and persistent preferences stored via `localStorage`.
-  - Smooth color transitions with a curated SaaS color palette (Deep Navy, Muted Gold, Soft Beige, and Dark Mode tones).
+  - Theme switching powered by React Context (`light`, `dark`, `dark-warm`, `system`).
+  - Persistent storage in `localStorage` and dynamic CSS variable application (`globals.css`).
 
-- **Backend REST API**
-  - Lightweight Flask server backed by a relational PostgreSQL database for authentication, student data, and credit ledger.
+- **Backend REST API & Real-Time Sync**
+  - Lightweight Flask server (`backend/app.py`) backed by PostgreSQL database with dedicated tables (`CcAllocationHistory`, `CcAllocationStudents`, `Messages`, `Task`, `Student`, `Application`, `Portfolio`).
+  - Real-time 3-second polling sync across browser tabs and sessions.
 
 ---
 

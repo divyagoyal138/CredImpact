@@ -2,8 +2,20 @@
 
 import { useState } from 'react'
 
-export default function DonutChart({ data = [], centerLabel = 'Total', height = 180 }) {
-  const [activeIndex, setActiveIndex] = useState(null)
+export interface DonutChartItem {
+  name: string
+  value: number
+  color: string
+}
+
+export interface DonutChartProps {
+  data?: DonutChartItem[]
+  centerLabel?: string
+  height?: number
+}
+
+export default function DonutChart({ data = [], centerLabel = 'Total', height = 180 }: DonutChartProps) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   const total = data.reduce((sum, item) => sum + (item.value || 0), 0)
 

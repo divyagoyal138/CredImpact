@@ -2,6 +2,23 @@
 
 import { useState } from 'react'
 
+export interface BarChartSeries {
+  key: string
+  name: string
+  color: string
+}
+
+export interface BarChartItem {
+  label?: string
+  [key: string]: any
+}
+
+export interface BarChartProps {
+  data?: BarChartItem[]
+  series?: BarChartSeries[]
+  height?: number
+}
+
 export default function BarChart({
   data = [],
   series = [
@@ -9,12 +26,12 @@ export default function BarChart({
     { key: 'val2', name: 'Applications', color: '#3b82f6' }
   ],
   height = 200
-}) {
-  const [hoveredIdx, setHoveredIdx] = useState(null)
+}: BarChartProps) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
 
   if (!data || data.length === 0) return null
 
-  const allValues = data.flatMap(d => series.map(s => d[s.key] || 0))
+  const allValues = data.flatMap(d => series.map(s => Number(d[s.key]) || 0))
   const maxValue = Math.max(...allValues, 10)
   const yMax = Math.ceil(maxValue * 1.2)
 
@@ -57,7 +74,7 @@ export default function BarChart({
             {/* Bars container */}
             <div className="flex items-end justify-center gap-1 w-full h-[78%] px-0.5">
               {series.map(s => {
-                const val = item[s.key] || 0
+                const val = Number(item[s.key]) || 0
                 const heightPercent = Math.max((val / yMax) * 100, 6)
 
                 return (

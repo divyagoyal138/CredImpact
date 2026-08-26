@@ -50,7 +50,7 @@ export default function AnalyticsPage() {
     ]
   }, [totalTasks, appliedCount, completedCount])
 
-  // Category Rewards breakdown for BarChart
+  // category rewards breakdown for BarChart
   const categoryRewardsData = useMemo(() => {
     const categoryCC = tasks.reduce((acc, task) => {
       const cat = task.category || 'General'

@@ -10,7 +10,7 @@ const NAV_LINKS = [
   { id: 'portfolio', label: 'Portfolio', icon: 'ti-briefcase' },
 ]
 
-function getInitials(name) {
+function getInitials(name?: string) {
   if (!name) return '??'
   return name
     .split(' ')
@@ -20,6 +20,15 @@ function getInitials(name) {
     .toUpperCase()
 }
 
+export interface TopNavProps {
+  user?: any
+  activeNav?: string
+  onNavClick?: (navId: string) => void
+  searchQuery?: string
+  onSearchChange?: (query: string) => void
+  notifications?: any[]
+}
+
 export default function TopNav({
   user,
   activeNav = 'explore',
@@ -27,11 +36,11 @@ export default function TopNav({
   searchQuery = '',
   onSearchChange,
   notifications = []
-}) {
+}: TopNavProps) {
   const initials = getInitials(user?.name)
   const ccBalance = user?.ccBalance ?? 0
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
-  const notificationsRef = useRef(null)
+  const notificationsRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
   const unreadCount = Array.isArray(notifications) ? notifications.length : 0
@@ -39,7 +48,7 @@ export default function TopNav({
   const openNotifications = () => setIsNotificationsOpen(true)
   const closeNotifications = () => setIsNotificationsOpen(false)
 
-  const viewTask = (taskId) => {
+  const viewTask = (taskId?: number | string) => {
     closeNotifications()
     if (taskId) {
       router.push('/dashboard/applied')
@@ -47,8 +56,8 @@ export default function TopNav({
   }
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false)
       }
     }

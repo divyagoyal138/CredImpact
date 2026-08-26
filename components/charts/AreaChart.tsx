@@ -2,6 +2,24 @@
 
 import { useState } from 'react'
 
+export interface AreaChartSeries {
+  key: string
+  name: string
+  color: string
+  gradientId?: string
+}
+
+export interface AreaChartItem {
+  label?: string
+  [key: string]: any
+}
+
+export interface AreaChartProps {
+  data?: AreaChartItem[]
+  series?: AreaChartSeries[]
+  height?: number
+}
+
 export default function AreaChart({
   data = [],
   series = [
@@ -9,8 +27,8 @@ export default function AreaChart({
     { key: 'val2', name: 'Series 2', color: '#10b981', gradientId: 'grad2' }
   ],
   height = 220
-}) {
-  const [hoverIndex, setHoverIndex] = useState(null)
+}: AreaChartProps) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
   if (!data || data.length === 0) return null
 
@@ -24,27 +42,27 @@ export default function AreaChart({
   const chartWidth = svgWidth - paddingLeft - paddingRight
   const chartHeight = svgHeight - paddingTop - paddingBottom
 
-  const allValues = data.flatMap(d => series.map(s => d[s.key] || 0))
+  const allValues = data.flatMap(d => series.map(s => Number(d[s.key]) || 0))
   const maxValue = Math.max(...allValues, 10)
   const yMax = Math.ceil(maxValue * 1.15)
 
-  const getX = (index) => {
+  const getX = (index: number) => {
     if (data.length <= 1) return paddingLeft + chartWidth / 2
     return paddingLeft + (index / (data.length - 1)) * chartWidth
   }
 
-  const getY = (value) => {
+  const getY = (value: number) => {
     return paddingTop + chartHeight - (value / yMax) * chartHeight
   }
 
-  const generatePath = (key) => {
+  const generatePath = (key: string) => {
     return data.reduce((acc, point, i) => {
       const x = getX(i)
-      const y = getY(point[key] || 0)
+      const y = getY(Number(point[key]) || 0)
       if (i === 0) return `M ${x},${y}`
 
       const prevX = getX(i - 1)
-      const prevY = getY(data[i - 1][key] || 0)
+      const prevY = getY(Number(data[i - 1][key]) || 0)
       const cp1x = prevX + (x - prevX) / 2
       const cp1y = prevY
       const cp2x = prevX + (x - prevX) / 2
@@ -53,7 +71,7 @@ export default function AreaChart({
     }, '')
   }
 
-  const generateAreaPath = (key) => {
+  const generateAreaPath = (key: string) => {
     const linePath = generatePath(key)
     const firstX = getX(0)
     const lastX = getX(data.length - 1)
@@ -63,8 +81,7 @@ export default function AreaChart({
 
   const yTicks = [0, Math.round(yMax * 0.33), Math.round(yMax * 0.66), yMax]
 
-  // Clamp tooltip positioning within 12% to 88%
-  const getTooltipLeft = (idx) => {
+  const getTooltipLeft = (idx: number) => {
     const rawPercent = (getX(idx) / svgWidth) * 100
     return Math.min(86, Math.max(14, rawPercent))
   }
@@ -187,7 +204,7 @@ export default function AreaChart({
                       <circle
                         key={`pt-${s.key}`}
                         cx={x}
-                        cy={getY(point[s.key] || 0)}
+                        cy={getY(Number(point[s.key]) || 0)}
                         r="4.5"
                         fill={s.color}
                         stroke="#ffffff"
@@ -207,7 +224,7 @@ export default function AreaChart({
             className="absolute z-20 pointer-events-none transform -translate-x-1/2 -translate-y-full rounded-lg border border-border bg-popover px-2.5 py-1.5 shadow-lg backdrop-blur-md max-w-[160px]"
             style={{
               left: `${getTooltipLeft(hoverIndex)}%`,
-              top: `${Math.max(15, (getY(Math.max(...series.map(s => data[hoverIndex][s.key] || 0))) / svgHeight) * 100 - 12)}%`
+              top: `${Math.max(15, (getY(Math.max(...series.map(s => Number(data[hoverIndex][s.key]) || 0))) / svgHeight) * 100 - 12)}%`
             }}
           >
             <p className="text-[11px] font-bold text-foreground border-b border-border pb-0.5 mb-1 truncate">

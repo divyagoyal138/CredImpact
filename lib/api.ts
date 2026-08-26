@@ -150,4 +150,29 @@ export const sendChatMessage = async (data: {
   });
 };
 
+// Students directory & CC Distribution API
+export const getStudents = async (department?: string) => {
+  const query = department ? `?department=${encodeURIComponent(department)}` : '';
+  return fetchApi(`/students${query}`);
+};
+
+export const distributeCC = async (data: {
+  taskId: number;
+  cc: number;
+  studentIds: string[];
+  venue?: string;
+  department?: string;
+  studentsInfo?: any[];
+}) => {
+  return fetchApi('/admin/distribute-cc', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const getCCAllocationHistory = async () => {
+  return fetchApi('/admin/cc-allocation-history');
+};
+
+
 
