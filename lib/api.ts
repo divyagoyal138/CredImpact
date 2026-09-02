@@ -1,16 +1,39 @@
-
 const API_BASE = 'http://localhost:5000/api';
 
 // Helper for fetch requests
 async function fetchApi(endpoint: string, options: RequestInit = {}) {
   const url = `${API_BASE}${endpoint}`;
+
+  let token: string | null = null;
+  if (typeof window !== 'undefined') {
+    token = localStorage.getItem('credimpact_token');
+    if (!token) {
+      const storedUser = localStorage.getItem('credimpact_user');
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          token = parsed.token || null;
+        } catch {
+          // Ignore JSON parse error
+        }
+      }
+    }
+  }
+
+  const authHeaders: Record<string, string> = {};
+  if (token) {
+    authHeaders['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...options.headers,
     },
     ...options,
   });
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || `API Error: ${response.status}`);
@@ -98,12 +121,14 @@ export const applyForTask = async (studentId: string, taskId: number) => {
     body: JSON.stringify({ studentId, taskId }),
   });
 };
+
 export const deleteApplication = async (studentId: string, taskId: number) => {
   return fetchApi('/applications', {
     method: 'DELETE',
     body: JSON.stringify({ studentId, taskId }),
-  })
+  });
 };
+
 export const updateApplicationStatus = async (applicationId: number, status: 'Approved' | 'Rejected') => {
   return fetchApi('/admin/applications/action', {
     method: 'POST',
@@ -173,6 +198,3 @@ export const distributeCC = async (data: {
 export const getCCAllocationHistory = async () => {
   return fetchApi('/admin/cc-allocation-history');
 };
-
-
-

@@ -258,6 +258,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleSidebarItemClick = (itemId: string) => {
     if (itemId === 'logout') {
       localStorage.removeItem('credimpact_user')
+      localStorage.removeItem('credimpact_token')
       router.push('/login')
       return
     }

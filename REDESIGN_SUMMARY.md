@@ -1,4 +1,4 @@
-# CampusLink SaaS Redesign Summary
+# CredImpact SaaS Redesign Summary
 
 ## 🎨 Design System Update
 

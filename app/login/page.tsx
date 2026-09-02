@@ -109,7 +109,10 @@ export default function LoginPage() {
       if (adminData && adminData.name) {
         setAdminName(adminData.name)
       }
-      localStorage.setItem('credimpact_user', JSON.stringify(adminData))
+      if (response.token) {
+        localStorage.setItem('credimpact_token', response.token)
+      }
+      localStorage.setItem('credimpact_user', JSON.stringify({ ...adminData, token: response.token }))
       setStep(5)
     } catch (error: any) {
       setAdminPasswordError(error.message || 'Incorrect admin password')
@@ -173,7 +176,10 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const response = await verifyStudentOtp(collegeCode, uid, otpCode)
-      localStorage.setItem('credimpact_user', JSON.stringify(response.student))
+      if (response.token) {
+        localStorage.setItem('credimpact_token', response.token)
+      }
+      localStorage.setItem('credimpact_user', JSON.stringify({ ...response.student, token: response.token }))
       setStep(5)
     } catch (error: any) {
       setOtpError(error.message || 'Incorrect code. Please try again.')
