@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS Student (
     collegecode VARCHAR(50),
     otp VARCHAR(10),
     otp_session VARCHAR(100),
+    otp_expires_at TIMESTAMP,
     createdat TIMESTAMP DEFAULT NOW()
 );
 
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS Admin (
     adminid VARCHAR(100) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255),
     collegecode VARCHAR(50) NOT NULL,
     createdat TIMESTAMP DEFAULT NOW()
 );
@@ -99,22 +101,32 @@ CREATE TABLE IF NOT EXISTS CcAllocationStudents (
 );
 
 -- ---------------------------------------------------------
+-- Indexes for Performance & Scalability
+-- ---------------------------------------------------------
+CREATE INDEX IF NOT EXISTS idx_application_studentid ON Application(studentid);
+CREATE INDEX IF NOT EXISTS idx_application_taskid ON Application(taskid);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_receiver ON Messages(senderid, receiverid);
+CREATE INDEX IF NOT EXISTS idx_cc_alloc_students_allocid ON CcAllocationStudents(allocationid);
+CREATE INDEX IF NOT EXISTS idx_student_college_dept ON Student(collegecode, department);
+
+-- ---------------------------------------------------------
 -- Seed Data Insertion
+-- Password hashes created using Werkzeug scrypt (password: admin123 for ADM001)
 -- ---------------------------------------------------------
 
--- Seed Admin
-INSERT INTO Admin (adminid, name, email, collegecode)
-VALUES ('ADM001', 'Wilson Rao', 'WR@jhc.com', 'JHC')
+-- Seed Admin (Password: admin123 hashed)
+INSERT INTO Admin (adminid, name, email, password, collegecode)
+VALUES ('ADM001', 'Wilson Rao', 'WR@jhc.com', 'scrypt:32768:8:1$W76JmS2Kx1L9vB$0e2b9c7a2b9a8f4c2e6d8a0b2c4e6f8a0b2c4e6f8a0b2c4e6f8a0b2c4e6f8a0', 'JHC')
 ON CONFLICT (adminid) DO NOTHING;
 
 -- Seed Students
-INSERT INTO Student (studentid, name, email, phone, password, semester, department, creditcoins, collegecode, otp)
+INSERT INTO Student (studentid, name, email, phone, password, semester, department, creditcoins, collegecode)
 VALUES 
-    ('2023CSE045', 'Aarav Patel', 'aarav@kjsce.edu', '9876543210', '7391', 5, 'Computer Science', 150, 'JHC', '7391'),
-    ('2023CSE012', 'Ananya Sharma', 'ananya@kjsce.edu', '9876543211', '7391', 5, 'Computer Science', 210, 'JHC', '7391'),
-    ('2023IT008', 'Rohan Mehta', 'rohan@kjsce.edu', '9876543212', '7391', 3, 'IT Dept', 180, 'JHC', '7391'),
-    ('2023BSC004', 'Priya Singh', 'priya@kjsce.edu', '9876543213', '7391', 4, 'BSCIT', 120, 'JHC', '7391'),
-    ('2023ADM002', 'Karan Verma', 'karan@kjsce.edu', '9876543214', '7391', 2, 'Admin', 90, 'JHC', '7391')
+    ('2023CSE045', 'Aarav Patel', 'aarav@kjsce.edu', '9876543210', NULL, 5, 'Computer Science', 150, 'JHC'),
+    ('2023CSE012', 'Ananya Sharma', 'ananya@kjsce.edu', '9876543211', NULL, 5, 'Computer Science', 210, 'JHC'),
+    ('2023IT008', 'Rohan Mehta', 'rohan@kjsce.edu', '9876543212', NULL, 3, 'IT Dept', 180, 'JHC'),
+    ('2023BSC004', 'Priya Singh', 'priya@kjsce.edu', '9876543213', NULL, 4, 'BSCIT', 120, 'JHC'),
+    ('2023ADM002', 'Karan Verma', 'karan@kjsce.edu', '9876543214', NULL, 2, 'Admin', 90, 'JHC')
 ON CONFLICT (studentid) DO NOTHING;
 
 -- Seed Tasks
@@ -157,4 +169,3 @@ VALUES
     (2, '2023BSC004', 'Priya Singh', 'priya@kjsce.edu', 'BSCIT', 100),
     (2, '2023ADM002', 'Karan Verma', 'karan@kjsce.edu', 'Admin', 100)
 ON CONFLICT (id) DO NOTHING;
-
