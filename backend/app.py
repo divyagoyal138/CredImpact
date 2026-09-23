@@ -15,9 +15,21 @@ from werkzeug.security import generate_password_hash, check_password_hash
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
 
-JWT_SECRET = os.getenv('JWT_SECRET', 'credimpact_jwt_secret_key_prod_2026')
+# CORS configuration
+frontend_url = os.getenv('FRONTEND_URL')
+if frontend_url:
+    allowed_origins = [origin.strip() for origin in frontend_url.split(',') if origin.strip()]
+    CORS(app, origins=allowed_origins, supports_credentials=True)
+else:
+    CORS(app)
+
+JWT_SECRET = os.getenv('JWT_SECRET')
+if not JWT_SECRET:
+    if os.getenv('RENDER') or os.getenv('FLASK_ENV') == 'production':
+        raise RuntimeError("FATAL: JWT_SECRET environment variable is missing in production environment!")
+    JWT_SECRET = 'dev_only_fallback_jwt_secret_key_change_in_production'
+
 TWOFACTOR_API_KEY = os.getenv('TWOFACTOR_API_KEY', '')
 
 def get_db_connection():
@@ -1449,4 +1461,6 @@ def send_chat_message():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.getenv('PORT', 5000))
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
