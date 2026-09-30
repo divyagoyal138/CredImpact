@@ -81,7 +81,7 @@ class CollegeVerificationTestCase(unittest.TestCase):
     def test_invalid_student_otp_rejected(self):
         response = self.app.post('/api/student/login/verify-otp', json={
             'collegeCode': 'JHC',
-            'studentUid': '24BIT020',
+            'studentUid': '24BIT001',
             'otp': '0000'
         })
         self.assertEqual(response.status_code, 401)
