@@ -138,17 +138,18 @@ def verify_college():
         cur.close()
         conn.close()
 
-        if college or college_code.upper() in ['JHC', 'KJSCE']:
+        if college:
             return jsonify({
                 'exists': True,
-                'name': college['collegecode'] if college else college_code.upper(),
+                'name': college['collegecode'],
                 'message': 'College verified'
             }), 200
         else:
-            return jsonify({'exists': False, 'message': 'College code not found'}), 404
+            return jsonify({'exists': False, 'message': 'Invalid college code. No registered student found for this college.'}), 404
     except Exception as e:
         print("DB Error verify_college:", e)
-        return jsonify({'exists': True, 'name': college_code.upper(), 'message': 'College verified'}), 200
+        return jsonify({'exists': False, 'message': 'Database connection error during college verification'}), 500
+
 
 
 @app.route('/api/admin/verify-username', methods=['POST'])
@@ -281,16 +282,16 @@ def verify_student_uid():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute(
-            'SELECT * FROM Student WHERE UPPER(collegecode) = UPPER(%s) AND UPPER(studentid) = UPPER(%s)',
-            (college_code, student_uid)
-        )
-        student = cur.fetchone()
 
-        if not student:
-            # Fallback search by studentid alone
+        if college_code:
+            cur.execute(
+                'SELECT * FROM Student WHERE UPPER(collegecode) = UPPER(%s) AND UPPER(studentid) = UPPER(%s)',
+                (college_code, student_uid)
+            )
+        else:
             cur.execute('SELECT * FROM Student WHERE UPPER(studentid) = UPPER(%s)', (student_uid,))
-            student = cur.fetchone()
+
+        student = cur.fetchone()
 
         if not student:
             cur.close()
@@ -321,12 +322,7 @@ def verify_student_uid():
         }), 200
     except Exception as e:
         print("DB Error verify_student_uid:", e)
-        return jsonify({
-            'exists': True,
-            'message': 'OTP sent to mobile number ******4321',
-            'phoneMask': '******4321',
-            'storedInDb': True
-        }), 200
+        return jsonify({'exists': False, 'message': 'Database error during student UID verification'}), 500
 
 
 @app.route('/api/student/login/verify-otp', methods=['POST'])
