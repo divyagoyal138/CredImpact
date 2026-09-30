@@ -83,10 +83,15 @@ def get_db_connection():
         sslmode = _resolve_sslmode(parsed.hostname, url_ssl, env_ssl)
         if sslmode:
             connect_kwargs['sslmode'] = sslmode
-        print(
-            f"DB connect host={parsed.hostname} db={dbname} sslmode={sslmode or 'default'}"
-        )
-        return psycopg2.connect(**connect_kwargs)
+        print(f"DB connect host={parsed.hostname} db={dbname} sslmode={sslmode or 'default'}")
+        try:
+            return psycopg2.connect(**connect_kwargs)
+        except psycopg2.OperationalError as err:
+            if 'sslmode' in connect_kwargs:
+                print(f"DB connect with sslmode={sslmode} failed, retrying without sslmode: {err}")
+                connect_kwargs.pop('sslmode', None)
+                return psycopg2.connect(**connect_kwargs)
+            raise
 
     host = _clean_env('DB_HOST', 'localhost')
     dbname = _clean_env('DB_NAME')
@@ -111,7 +116,14 @@ def get_db_connection():
     if sslmode:
         connect_kwargs['sslmode'] = sslmode
     print(f"DB connect host={host} db={dbname} sslmode={sslmode or 'default'}")
-    return psycopg2.connect(**connect_kwargs)
+    try:
+        return psycopg2.connect(**connect_kwargs)
+    except psycopg2.OperationalError as err:
+        if 'sslmode' in connect_kwargs:
+            connect_kwargs.pop('sslmode', None)
+            return psycopg2.connect(**connect_kwargs)
+        raise
+
 
 
 def normalize_code(value):
