@@ -27,6 +27,24 @@ CREATE TABLE IF NOT EXISTS Admin (
     createdat TIMESTAMP DEFAULT NOW()
 );
 
+-- Ensure all columns exist on Student table if table was created by older schema
+ALTER TABLE Student ADD COLUMN IF NOT EXISTS collegecode VARCHAR(50);
+ALTER TABLE Student ADD COLUMN IF NOT EXISTS otp VARCHAR(10);
+ALTER TABLE Student ADD COLUMN IF NOT EXISTS otp_session VARCHAR(100);
+ALTER TABLE Student ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP;
+ALTER TABLE Student ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+ALTER TABLE Student ADD COLUMN IF NOT EXISTS password VARCHAR(255);
+ALTER TABLE Student ADD COLUMN IF NOT EXISTS semester INT DEFAULT 1;
+ALTER TABLE Student ADD COLUMN IF NOT EXISTS department VARCHAR(100);
+ALTER TABLE Student ADD COLUMN IF NOT EXISTS creditcoins INT DEFAULT 0;
+ALTER TABLE Student ALTER COLUMN password DROP NOT NULL;
+
+-- Ensure all columns exist on Admin table if table was created by older schema
+ALTER TABLE Admin ADD COLUMN IF NOT EXISTS collegecode VARCHAR(50);
+ALTER TABLE Admin ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+ALTER TABLE Admin ADD COLUMN IF NOT EXISTS password VARCHAR(255);
+ALTER TABLE Admin ALTER COLUMN collegecode DROP NOT NULL;
+
 -- 3. Task / Event Table
 CREATE TABLE IF NOT EXISTS Task (
     taskid SERIAL PRIMARY KEY,
@@ -42,6 +60,12 @@ CREATE TABLE IF NOT EXISTS Task (
     createdat TIMESTAMP DEFAULT NOW()
 );
 
+-- Ensure all columns exist on Task table if table was created by older schema
+ALTER TABLE Task ADD COLUMN IF NOT EXISTS department VARCHAR(100);
+ALTER TABLE Task ADD COLUMN IF NOT EXISTS urgent BOOLEAN DEFAULT FALSE;
+ALTER TABLE Task ADD COLUMN IF NOT EXISTS category VARCHAR(100);
+ALTER TABLE Task ADD COLUMN IF NOT EXISTS createdby VARCHAR(100);
+
 -- 4. Application Table
 CREATE TABLE IF NOT EXISTS Application (
     applicationid SERIAL PRIMARY KEY,
@@ -52,6 +76,9 @@ CREATE TABLE IF NOT EXISTS Application (
     CONSTRAINT unique_student_task UNIQUE(studentid, taskid)
 );
 
+-- Ensure all columns exist on Application table if created by older schema
+ALTER TABLE Application ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';
+
 -- 5. Portfolio Table
 CREATE TABLE IF NOT EXISTS Portfolio (
     portfolioid SERIAL PRIMARY KEY,
@@ -61,6 +88,12 @@ CREATE TABLE IF NOT EXISTS Portfolio (
     portfoliolink TEXT,
     updatedat TIMESTAMP DEFAULT NOW()
 );
+
+-- Ensure all columns exist on Portfolio table if created by older schema
+ALTER TABLE Portfolio ADD COLUMN IF NOT EXISTS completedtasks INT DEFAULT 0;
+ALTER TABLE Portfolio ADD COLUMN IF NOT EXISTS totalcredits INT DEFAULT 0;
+ALTER TABLE Portfolio ADD COLUMN IF NOT EXISTS portfoliolink TEXT;
+
 
 -- 6. Messages Table (Approved Admin Student Chat)
 CREATE TABLE IF NOT EXISTS Messages (
@@ -118,17 +151,18 @@ CREATE INDEX IF NOT EXISTS idx_admin_collegecode ON Admin(collegecode);
 -- Seed Admin (Password: admin123 hashed)
 INSERT INTO Admin (adminid, name, email, password, collegecode)
 VALUES ('ADM001', 'Wilson Rao', 'WR@jhc.com', 'scrypt:32768:8:1$W76JmS2Kx1L9vB$0e2b9c7a2b9a8f4c2e6d8a0b2c4e6f8a0b2c4e6f8a0b2c4e6f8a0b2c4e6f8a0', 'JHC')
-ON CONFLICT (adminid) DO NOTHING;
+ON CONFLICT (adminid) DO UPDATE SET collegecode = EXCLUDED.collegecode, name = EXCLUDED.name, email = EXCLUDED.email;
 
 -- Seed Students
 INSERT INTO Student (studentid, name, email, phone, password, semester, department, creditcoins, collegecode)
 VALUES 
-    ('2023CSE045', 'Aarav Patel', 'aarav@kjsce.edu', '9876543210', NULL, 5, 'Computer Science', 150, 'JHC'),
-    ('2023CSE012', 'Ananya Sharma', 'ananya@kjsce.edu', '9876543211', NULL, 5, 'Computer Science', 210, 'JHC'),
-    ('2023IT008', 'Rohan Mehta', 'rohan@kjsce.edu', '9876543212', NULL, 3, 'IT Dept', 180, 'JHC'),
-    ('2023BSC004', 'Priya Singh', 'priya@kjsce.edu', '9876543213', NULL, 4, 'BSCIT', 120, 'JHC'),
-    ('2023ADM002', 'Karan Verma', 'karan@kjsce.edu', '9876543214', NULL, 2, 'Admin', 90, 'JHC')
-ON CONFLICT (studentid) DO NOTHING;
+    ('2023CSE045', 'Aarav Patel', 'aarav@kjsce.edu', '9876543210', 'student123', 5, 'Computer Science', 150, 'JHC'),
+    ('2023CSE012', 'Ananya Sharma', 'ananya@kjsce.edu', '9876543211', 'student123', 5, 'Computer Science', 210, 'JHC'),
+    ('2023IT008', 'Rohan Mehta', 'rohan@kjsce.edu', '9876543212', 'student123', 3, 'IT Dept', 180, 'JHC'),
+    ('2023BSC004', 'Priya Singh', 'priya@kjsce.edu', '9876543213', 'student123', 4, 'BSCIT', 120, 'JHC'),
+    ('2023ADM002', 'Karan Verma', 'karan@kjsce.edu', '9876543214', 'student123', 2, 'Admin', 90, 'JHC')
+ON CONFLICT (studentid) DO UPDATE SET collegecode = EXCLUDED.collegecode;
+
 
 -- Seed Tasks
 INSERT INTO Task (taskid, title, description, creditcoins, deadline, status, department, urgent, category, createdby)
@@ -136,7 +170,8 @@ VALUES
     (1, 'Design poster for Tech Fest 2025', 'Create promotional graphics and social banners for upcoming campus tech symposium.', 50, '2026-08-30', 'open', 'Computer Science', TRUE, 'Design', 'ADM001'),
     (2, 'Annual Hackathon Volunteer & Registration', 'Assist in managing registration counters and team onboarding for national hackathon.', 100, '2026-09-05', 'open', 'BSCIT', FALSE, 'Event Help', 'ADM001'),
     (3, 'Library Book Digitization & Cataloging', 'Help library staff scan and index rare historical research reference papers.', 40, '2026-08-28', 'completed', 'Library', FALSE, 'Admin', 'ADM001')
-ON CONFLICT (taskid) DO NOTHING;
+ON CONFLICT (taskid) DO UPDATE SET department = EXCLUDED.department, createdby = EXCLUDED.createdby;
+
 
 -- Seed Applications
 INSERT INTO Application (applicationid, studentid, taskid, status, applieddate)

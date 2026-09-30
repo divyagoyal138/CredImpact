@@ -208,9 +208,50 @@ def send_2factor_otp(phone_number, otp_code):
         return {'success': False, 'error': 'SMS service temporary failure'}
 
 
+def init_db_schema():
+    """
+    Automatically reads schema.sql and executes it against PostgreSQL to create 
+    missing tables, add missing columns, and insert initial seed data.
+    """
+    schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
+    if not os.path.exists(schema_path):
+        print("Schema file not found at", schema_path)
+        return False, "schema.sql file not found"
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            sql_script = f.read()
+        cur.execute(sql_script)
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Database schema successfully initialized/migrated from schema.sql")
+        return True, "Database schema initialized successfully"
+    except Exception as e:
+        print("Failed to initialize database schema:", e)
+        return False, str(e)
+
+
+# Initialize DB schema on module startup if database is available
+try:
+    init_db_schema()
+except Exception as _init_err:
+    print("Startup schema initialization attempt:", _init_err)
+
+
 # ---------------------------------------------------------
-# Authentication Routes
+# Authentication & Health Routes
 # ---------------------------------------------------------
+
+@app.route('/api/init-db', methods=['POST', 'GET'])
+def trigger_init_db():
+    success, msg = init_db_schema()
+    if success:
+        return jsonify({'ok': True, 'message': 'Database tables created and seeded successfully'}), 200
+    return jsonify({'ok': False, 'error': msg}), 500
+
 
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -234,6 +275,10 @@ def health():
         has_student, has_admin = cur.fetchone()
         cur.close()
         conn.close()
+
+        if not (has_student and has_admin):
+            init_db_schema()
+
         return jsonify({
             'ok': True,
             'db': True,
@@ -256,7 +301,7 @@ def verify_college():
     if not college_code:
         return jsonify({'exists': False, 'message': 'College code is required'}), 400
 
-    try:
+    def _do_query():
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute(
@@ -272,33 +317,53 @@ def verify_college():
             ''',
             (college_code, college_code)
         )
-        college = cur.fetchone()
+        col = cur.fetchone()
         cur.close()
         conn.close()
+        return col
 
-        if college:
+    try:
+        college = _do_query()
+    except (psycopg2.errors.UndefinedTable, psycopg2.errors.UndefinedColumn) as e:
+        print("DB Error verify_college (missing table/column), attempting auto-init:", e)
+        init_db_schema()
+        try:
+            college = _do_query()
+        except Exception as retry_e:
+            print("Retry verify_college failed:", retry_e)
             return jsonify({
-                'exists': True,
-                'name': college['collegecode'],
-                'message': 'College verified'
-            }), 200
-
-        return jsonify({
-            'exists': False,
-            'message': 'Invalid college code. No registered college found in the database.'
-        }), 404
+                'exists': False,
+                'message': 'Database tables are missing and auto-initialization failed.'
+            }), 500
     except psycopg2.OperationalError as e:
         print("DB Error verify_college (connection):", e)
         return jsonify({'exists': False, 'message': 'Database connection error during college verification'}), 500
-    except psycopg2.errors.UndefinedTable as e:
-        print("DB Error verify_college (missing table):", e)
-        return jsonify({
-            'exists': False,
-            'message': 'Database tables are missing. Run backend/schema.sql on your Render Postgres.'
-        }), 500
     except Exception as e:
         print("DB Error verify_college:", type(e).__name__, e)
-        return jsonify({'exists': False, 'message': 'Database error during college verification'}), 500
+        # Check if error message indicates missing table/column
+        err_str = str(e).lower()
+        if 'does not exist' in err_str or 'undefinedtable' in err_str or 'undefinedcolumn' in err_str:
+            init_db_schema()
+            try:
+                college = _do_query()
+            except Exception as retry_e:
+                print("Retry verify_college failed:", retry_e)
+                return jsonify({'exists': False, 'message': 'Database error during college verification'}), 500
+        else:
+            return jsonify({'exists': False, 'message': 'Database error during college verification'}), 500
+
+    if college:
+        return jsonify({
+            'exists': True,
+            'name': college['collegecode'],
+            'message': 'College verified'
+        }), 200
+
+    return jsonify({
+        'exists': False,
+        'message': 'Invalid college code. No registered college found in the database.'
+    }), 404
+
 
 
 @app.route('/api/admin/verify-username', methods=['POST'])
