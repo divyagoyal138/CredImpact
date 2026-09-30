@@ -4,6 +4,7 @@ import random
 import json
 import urllib.request
 import functools
+from urllib.parse import parse_qs, unquote, urlparse
 import jwt
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
@@ -32,29 +33,66 @@ if not JWT_SECRET:
 
 TWOFACTOR_API_KEY = os.getenv('TWOFACTOR_API_KEY', '')
 
+
+def _clean_env(key, default=''):
+    val = os.getenv(key, default)
+    if val is None:
+        return default
+    return str(val).strip().strip('"').strip("'")
+
+
+def _resolve_sslmode(host, url_ssl=None, env_ssl=None):
+    """
+    Render External hosts (*.render.com) need TLS.
+    Internal hosts (e.g. dpg-xxxxx-a) fail if sslmode=require is forced.
+    """
+    host = host or ''
+    is_external_render = 'render.com' in host
+    if url_ssl:
+        return url_ssl
+    if is_external_render:
+        return env_ssl or 'require'
+    if env_ssl and env_ssl.lower() in ('disable', 'allow', 'prefer'):
+        return env_ssl
+    return None
+
+
 def get_db_connection():
     """Connect to PostgreSQL using Render DATABASE_URL or discrete DB_* vars."""
-    database_url = os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
-    sslmode = os.getenv('DB_SSLMODE')
+    database_url = _clean_env('DATABASE_URL') or _clean_env('POSTGRES_URL')
+    env_ssl = _clean_env('DB_SSLMODE') or None
 
     if database_url:
         if database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql://', 1)
-        connect_kwargs = {}
-        url_has_ssl = 'sslmode=' in database_url.lower()
+            database_url = 'postgresql://' + database_url[len('postgres://'):]
+        parsed = urlparse(database_url)
+        query = parse_qs(parsed.query)
+        url_ssl = (query.get('sslmode') or [None])[0]
+        dbname = unquote((parsed.path or '/').lstrip('/'))
+        if not parsed.hostname or not dbname:
+            raise RuntimeError('DATABASE_URL is missing host or database name')
+
+        connect_kwargs = {
+            'host': parsed.hostname,
+            'dbname': dbname,
+            'user': unquote(parsed.username) if parsed.username else None,
+            'password': unquote(parsed.password) if parsed.password else '',
+            'port': parsed.port or 5432,
+            'connect_timeout': 15,
+        }
+        sslmode = _resolve_sslmode(parsed.hostname, url_ssl, env_ssl)
         if sslmode:
             connect_kwargs['sslmode'] = sslmode
-        elif not url_has_ssl:
-            host_part = database_url.split('@')[-1] if '@' in database_url else database_url
-            if 'render.com' in host_part or os.getenv('RENDER'):
-                connect_kwargs['sslmode'] = 'require'
-        return psycopg2.connect(database_url, **connect_kwargs)
+        print(
+            f"DB connect host={parsed.hostname} db={dbname} sslmode={sslmode or 'default'}"
+        )
+        return psycopg2.connect(**connect_kwargs)
 
-    host = os.getenv('DB_HOST', 'localhost')
-    dbname = os.getenv('DB_NAME')
-    user = os.getenv('DB_USER')
-    password = os.getenv('DB_PASSWORD')
-    port = os.getenv('DB_PORT', '5432')
+    host = _clean_env('DB_HOST', 'localhost')
+    dbname = _clean_env('DB_NAME')
+    user = _clean_env('DB_USER')
+    password = _clean_env('DB_PASSWORD')
+    port = _clean_env('DB_PORT', '5432') or '5432'
 
     if not dbname or not user:
         raise RuntimeError(
@@ -63,16 +101,16 @@ def get_db_connection():
 
     connect_kwargs = {
         'host': host,
-        'database': dbname,
+        'dbname': dbname,
         'user': user,
         'password': password,
         'port': port,
+        'connect_timeout': 15,
     }
+    sslmode = _resolve_sslmode(host, None, env_ssl)
     if sslmode:
         connect_kwargs['sslmode'] = sslmode
-    elif host and 'render.com' in str(host):
-        connect_kwargs['sslmode'] = 'require'
-
+    print(f"DB connect host={host} db={dbname} sslmode={sslmode or 'default'}")
     return psycopg2.connect(**connect_kwargs)
 
 
@@ -174,6 +212,42 @@ def send_2factor_otp(phone_number, otp_code):
 # Authentication Routes
 # ---------------------------------------------------------
 
+@app.route('/api/health', methods=['GET'])
+def health():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('SELECT 1')
+        cur.execute(
+            '''
+            SELECT
+              EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'student'
+              ),
+              EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'admin'
+              )
+            '''
+        )
+        has_student, has_admin = cur.fetchone()
+        cur.close()
+        conn.close()
+        return jsonify({
+            'ok': True,
+            'db': True,
+            'tables': {'student': bool(has_student), 'admin': bool(has_admin)}
+        }), 200
+    except Exception as e:
+        print("Health DB error:", type(e).__name__, e)
+        return jsonify({
+            'ok': False,
+            'db': False,
+            'error': type(e).__name__
+        }), 503
+
+
 @app.route('/api/college/verify', methods=['POST'])
 def verify_college():
     data = request.json or {}
@@ -213,9 +287,18 @@ def verify_college():
             'exists': False,
             'message': 'Invalid college code. No registered college found in the database.'
         }), 404
-    except Exception as e:
-        print("DB Error verify_college:", e)
+    except psycopg2.OperationalError as e:
+        print("DB Error verify_college (connection):", e)
         return jsonify({'exists': False, 'message': 'Database connection error during college verification'}), 500
+    except psycopg2.errors.UndefinedTable as e:
+        print("DB Error verify_college (missing table):", e)
+        return jsonify({
+            'exists': False,
+            'message': 'Database tables are missing. Run backend/schema.sql on your Render Postgres.'
+        }), 500
+    except Exception as e:
+        print("DB Error verify_college:", type(e).__name__, e)
+        return jsonify({'exists': False, 'message': 'Database error during college verification'}), 500
 
 
 @app.route('/api/admin/verify-username', methods=['POST'])
