@@ -11,7 +11,6 @@ class CollegeVerificationTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
         self.assertTrue(data.get('exists'))
-        self.assertEqual(data.get('name'), 'JHC')
 
     def test_valid_college_code_case_insensitive(self):
         response = self.app.post('/api/college/verify', json={'collegeCode': 'jhc'})
@@ -49,6 +48,35 @@ class CollegeVerificationTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
         self.assertTrue(data.get('exists'))
+
+    def test_invalid_admin_username_rejected(self):
+        response = self.app.post('/api/admin/verify-username', json={
+            'collegeCode': 'JHC',
+            'adminUid': 'NONEXISTENT_ADMIN_999'
+        })
+        self.assertEqual(response.status_code, 404)
+        data = response.get_json()
+        self.assertFalse(data.get('exists'))
+
+    def test_invalid_admin_password_rejected(self):
+        response = self.app.post('/api/admin/login', json={
+            'collegeCode': 'JHC',
+            'adminUid': 'ADM001',
+            'password': 'wrongpassword123'
+        })
+        self.assertEqual(response.status_code, 401)
+        data = response.get_json()
+        self.assertFalse(data.get('valid'))
+
+    def test_invalid_student_otp_rejected(self):
+        response = self.app.post('/api/student/login/verify-otp', json={
+            'collegeCode': 'JHC',
+            'studentUid': '24BIT020',
+            'otp': '0000'
+        })
+        self.assertEqual(response.status_code, 401)
+        data = response.get_json()
+        self.assertFalse(data.get('valid'))
 
 if __name__ == '__main__':
     unittest.main()

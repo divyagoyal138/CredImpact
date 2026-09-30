@@ -179,19 +179,11 @@ def verify_admin_username():
                 'email': admin['email'],
                 'message': 'Admin record found'
             }), 200
-        elif admin_uid.lower() in ['admin@kjsce.edu', 'admin', 'adm001']:
-            return jsonify({
-                'exists': True,
-                'name': 'Wilson Rao',
-                'adminid': 'ADM001',
-                'email': 'WR@jhc.com',
-                'message': 'Admin record found'
-            }), 200
         else:
             return jsonify({'exists': False, 'message': 'Admin account not found'}), 404
     except Exception as e:
         print("DB Error verify_admin_username:", e)
-        return jsonify({'exists': True, 'name': 'Wilson Rao', 'adminid': 'ADM001', 'email': 'WR@jhc.com'}), 200
+        return jsonify({'exists': False, 'message': 'Database error during admin verification'}), 500
 
 
 @app.route('/api/admin/login', methods=['POST'])
@@ -220,16 +212,6 @@ def verify_admin_login():
             db_pw = admin.get('password')
             if db_pw and (check_password_hash(db_pw, password) or db_pw == password):
                 authenticated = True
-            elif not db_pw and password == 'admin123':
-                authenticated = True
-        elif admin_uid.lower() in ['admin@kjsce.edu', 'admin', 'adm001'] and password == 'admin123':
-            admin = {
-                'adminid': 'ADM001',
-                'name': 'Wilson Rao',
-                'email': 'WR@jhc.com',
-                'createdat': datetime.datetime.now()
-            }
-            authenticated = True
 
         if authenticated:
             admin_id = admin['adminid']
@@ -249,25 +231,10 @@ def verify_admin_login():
                 }
             }), 200
         else:
-            return jsonify({'valid': False, 'message': 'Invalid admin password'}), 401
+            return jsonify({'valid': False, 'message': 'Invalid admin ID or password'}), 401
     except Exception as e:
         print("DB Error verify_admin_login:", e)
-        if password == 'admin123':
-            token = generate_token('ADM001', 'admin', college_code)
-            return jsonify({
-                'valid': True,
-                'token': token,
-                'admin': {
-                    'collegeCode': college_code,
-                    'uid': 'ADM001',
-                    'adminid': 'ADM001',
-                    'name': 'Wilson Rao',
-                    'email': 'WR@jhc.com',
-                    'department': 'Administration',
-                    'role': 'admin'
-                }
-            }), 200
-        return jsonify({'valid': False, 'message': 'Invalid credentials'}), 401
+        return jsonify({'valid': False, 'message': 'Database error during admin login'}), 500
 
 
 @app.route('/api/student/login/verify-uid', methods=['POST'])
@@ -350,7 +317,7 @@ def verify_student_otp():
             return jsonify({'valid': False, 'message': 'Student record not found'}), 404
 
         db_otp = str(student.get('otp') or '').strip()
-        is_valid = (otp == db_otp) or (otp in ['7391', '1234'])
+        is_valid = bool(db_otp and otp == db_otp)
 
         portfolio = None
         if is_valid:
@@ -388,26 +355,7 @@ def verify_student_otp():
             return jsonify({'valid': False, 'message': 'Invalid verification OTP. Please check and try again.'}), 401
     except Exception as e:
         print("DB Error verify_student_otp:", e)
-        if otp in ['7391', '1234']:
-            token = generate_token(student_uid, 'student', college_code)
-            return jsonify({
-                'valid': True,
-                'token': token,
-                'student': {
-                    'collegeCode': college_code,
-                    'uid': student_uid,
-                    'studentid': student_uid,
-                    'name': 'Student User',
-                    'email': 'student@kjsce.edu',
-                    'semester': 5,
-                    'department': 'Computer Science',
-                    'branch': 'Computer Science',
-                    'ccBalance': 150,
-                    'creditcoins': 150,
-                    'role': 'student'
-                }
-            }), 200
-        return jsonify({'valid': False, 'message': 'Invalid verification code'}), 401
+        return jsonify({'valid': False, 'message': 'Database error during OTP verification'}), 500
 
 
 # ---------------------------------------------------------
