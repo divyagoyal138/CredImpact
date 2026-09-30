@@ -38,11 +38,20 @@ async function fetchApi(endpoint: string, options: RequestInit = {}) {
     ...options,
   });
 
+  const data = await response.json().catch(() => ({}));
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `API Error: ${response.status}`);
+    throw new Error((data as { message?: string }).message || `API Error: ${response.status}`);
   }
-  return response.json();
+
+  if (data && typeof data === 'object') {
+    const result = data as { exists?: boolean; valid?: boolean; message?: string };
+    if (result.exists === false || result.valid === false) {
+      throw new Error(result.message || 'Verification failed');
+    }
+  }
+
+  return data;
 }
 
 // College verification

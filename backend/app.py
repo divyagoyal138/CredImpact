@@ -33,13 +33,65 @@ if not JWT_SECRET:
 TWOFACTOR_API_KEY = os.getenv('TWOFACTOR_API_KEY', '')
 
 def get_db_connection():
-    return psycopg2.connect(
-        host=os.getenv('DB_HOST', 'localhost'),
-        database=os.getenv('DB_NAME'),
-        user=os.getenv('DB_USER'),
-        password=os.getenv('DB_PASSWORD'),
-        port=os.getenv('DB_PORT', '5432')
-    )
+    """Connect to PostgreSQL using Render DATABASE_URL or discrete DB_* vars."""
+    database_url = os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
+    sslmode = os.getenv('DB_SSLMODE')
+
+    if database_url:
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        connect_kwargs = {}
+        url_has_ssl = 'sslmode=' in database_url.lower()
+        if sslmode:
+            connect_kwargs['sslmode'] = sslmode
+        elif not url_has_ssl:
+            host_part = database_url.split('@')[-1] if '@' in database_url else database_url
+            if 'render.com' in host_part or os.getenv('RENDER'):
+                connect_kwargs['sslmode'] = 'require'
+        return psycopg2.connect(database_url, **connect_kwargs)
+
+    host = os.getenv('DB_HOST', 'localhost')
+    dbname = os.getenv('DB_NAME')
+    user = os.getenv('DB_USER')
+    password = os.getenv('DB_PASSWORD')
+    port = os.getenv('DB_PORT', '5432')
+
+    if not dbname or not user:
+        raise RuntimeError(
+            'Database configuration is missing. Set DATABASE_URL (Render) or DB_NAME and DB_USER.'
+        )
+
+    connect_kwargs = {
+        'host': host,
+        'database': dbname,
+        'user': user,
+        'password': password,
+        'port': port,
+    }
+    if sslmode:
+        connect_kwargs['sslmode'] = sslmode
+    elif host and 'render.com' in str(host):
+        connect_kwargs['sslmode'] = 'require'
+
+    return psycopg2.connect(**connect_kwargs)
+
+
+def normalize_code(value):
+    if value is None:
+        return ''
+    return str(value).strip()
+
+
+def password_matches(stored, provided):
+    if not stored or not provided:
+        return False
+    stored = str(stored)
+    if stored.startswith(('pbkdf2:', 'scrypt:', 'argon2:')):
+        try:
+            return check_password_hash(stored, provided)
+        except Exception:
+            return False
+    return stored == provided
 
 def format_date(val):
     if isinstance(val, (datetime.date, datetime.datetime)):
@@ -125,7 +177,7 @@ def send_2factor_otp(phone_number, otp_code):
 @app.route('/api/college/verify', methods=['POST'])
 def verify_college():
     data = request.json or {}
-    college_code = data.get('collegeCode', '').strip()
+    college_code = normalize_code(data.get('collegeCode'))
 
     if not college_code:
         return jsonify({'exists': False, 'message': 'College code is required'}), 400
@@ -133,7 +185,19 @@ def verify_college():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute('SELECT DISTINCT collegecode FROM Student WHERE UPPER(collegecode) = UPPER(%s)', (college_code,))
+        cur.execute(
+            '''
+            SELECT collegecode FROM (
+                SELECT collegecode FROM Student
+                WHERE collegecode IS NOT NULL AND UPPER(TRIM(collegecode)) = UPPER(%s)
+                UNION
+                SELECT collegecode FROM Admin
+                WHERE collegecode IS NOT NULL AND UPPER(TRIM(collegecode)) = UPPER(%s)
+            ) colleges
+            LIMIT 1
+            ''',
+            (college_code, college_code)
+        )
         college = cur.fetchone()
         cur.close()
         conn.close()
@@ -144,19 +208,24 @@ def verify_college():
                 'name': college['collegecode'],
                 'message': 'College verified'
             }), 200
-        else:
-            return jsonify({'exists': False, 'message': 'Invalid college code. No registered student found for this college.'}), 404
+
+        return jsonify({
+            'exists': False,
+            'message': 'Invalid college code. No registered college found in the database.'
+        }), 404
     except Exception as e:
         print("DB Error verify_college:", e)
         return jsonify({'exists': False, 'message': 'Database connection error during college verification'}), 500
 
 
-
 @app.route('/api/admin/verify-username', methods=['POST'])
 def verify_admin_username():
     data = request.json or {}
-    admin_uid = data.get('adminUid', '').strip()
+    college_code = normalize_code(data.get('collegeCode'))
+    admin_uid = normalize_code(data.get('adminUid'))
 
+    if not college_code:
+        return jsonify({'exists': False, 'message': 'College code is required'}), 400
     if not admin_uid:
         return jsonify({'exists': False, 'message': 'Admin username or ID required'}), 400
 
@@ -164,8 +233,13 @@ def verify_admin_username():
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute(
-            'SELECT adminid, name, email FROM Admin WHERE UPPER(adminid) = UPPER(%s) OR UPPER(email) = UPPER(%s)',
-            (admin_uid, admin_uid)
+            '''
+            SELECT adminid, name, email, collegecode
+            FROM Admin
+            WHERE UPPER(TRIM(collegecode)) = UPPER(%s)
+              AND (UPPER(adminid) = UPPER(%s) OR UPPER(email) = UPPER(%s))
+            ''',
+            (college_code, admin_uid, admin_uid)
         )
         admin = cur.fetchone()
         cur.close()
@@ -177,10 +251,14 @@ def verify_admin_username():
                 'name': admin['name'],
                 'adminid': admin['adminid'],
                 'email': admin['email'],
+                'collegeCode': admin['collegecode'],
                 'message': 'Admin record found'
             }), 200
-        else:
-            return jsonify({'exists': False, 'message': 'Admin account not found'}), 404
+
+        return jsonify({
+            'exists': False,
+            'message': 'Admin account not found for this college'
+        }), 404
     except Exception as e:
         print("DB Error verify_admin_username:", e)
         return jsonify({'exists': False, 'message': 'Database error during admin verification'}), 500
@@ -189,10 +267,14 @@ def verify_admin_username():
 @app.route('/api/admin/login', methods=['POST'])
 def verify_admin_login():
     data = request.json or {}
-    college_code = data.get('collegeCode', '').strip() or 'JHC'
-    admin_uid = data.get('adminUid', '').strip()
-    password = data.get('password', '').strip()
+    college_code = normalize_code(data.get('collegeCode'))
+    admin_uid = normalize_code(data.get('adminUid'))
+    password = data.get('password', '')
+    if isinstance(password, str):
+        password = password.strip()
 
+    if not college_code:
+        return jsonify({'valid': False, 'message': 'College code is required'}), 400
     if not admin_uid or not password:
         return jsonify({'valid': False, 'message': 'Admin ID and password are required'}), 400
 
@@ -200,38 +282,38 @@ def verify_admin_login():
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute(
-            'SELECT * FROM Admin WHERE UPPER(adminid) = UPPER(%s) OR UPPER(email) = UPPER(%s)',
-            (admin_uid, admin_uid)
+            '''
+            SELECT *
+            FROM Admin
+            WHERE UPPER(TRIM(collegecode)) = UPPER(%s)
+              AND (UPPER(adminid) = UPPER(%s) OR UPPER(email) = UPPER(%s))
+            ''',
+            (college_code, admin_uid, admin_uid)
         )
         admin = cur.fetchone()
         cur.close()
         conn.close()
 
-        authenticated = False
-        if admin:
-            db_pw = admin.get('password')
-            if db_pw and (check_password_hash(db_pw, password) or db_pw == password):
-                authenticated = True
-
-        if authenticated:
-            admin_id = admin['adminid']
-            token = generate_token(admin_id, 'admin', college_code)
-            return jsonify({
-                'valid': True,
-                'token': token,
-                'admin': {
-                    'collegeCode': college_code,
-                    'uid': admin_id,
-                    'adminid': admin_id,
-                    'name': admin['name'],
-                    'email': admin['email'],
-                    'department': 'Administration',
-                    'createdAt': format_date(admin.get('createdat')),
-                    'role': 'admin'
-                }
-            }), 200
-        else:
+        if not admin or not password_matches(admin.get('password'), password):
             return jsonify({'valid': False, 'message': 'Invalid admin ID or password'}), 401
+
+        admin_id = admin['adminid']
+        db_college = admin.get('collegecode') or college_code
+        token = generate_token(admin_id, 'admin', db_college)
+        return jsonify({
+            'valid': True,
+            'token': token,
+            'admin': {
+                'collegeCode': db_college,
+                'uid': admin_id,
+                'adminid': admin_id,
+                'name': admin['name'],
+                'email': admin['email'],
+                'department': 'Administration',
+                'createdAt': format_date(admin.get('createdat')),
+                'role': 'admin'
+            }
+        }), 200
     except Exception as e:
         print("DB Error verify_admin_login:", e)
         return jsonify({'valid': False, 'message': 'Database error during admin login'}), 500
@@ -240,36 +322,46 @@ def verify_admin_login():
 @app.route('/api/student/login/verify-uid', methods=['POST'])
 def verify_student_uid():
     data = request.json or {}
-    college_code = data.get('collegeCode', '').strip()
-    student_uid = data.get('studentUid', '').strip()
+    college_code = normalize_code(data.get('collegeCode'))
+    student_uid = normalize_code(data.get('studentUid'))
 
+    if not college_code:
+        return jsonify({'exists': False, 'message': 'College code is required'}), 400
     if not student_uid:
         return jsonify({'exists': False, 'message': 'Student UID is required'}), 400
 
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-
-        if college_code:
-            cur.execute(
-                'SELECT * FROM Student WHERE UPPER(collegecode) = UPPER(%s) AND UPPER(studentid) = UPPER(%s)',
-                (college_code, student_uid)
-            )
-        else:
-            cur.execute('SELECT * FROM Student WHERE UPPER(studentid) = UPPER(%s)', (student_uid,))
-
+        cur.execute(
+            '''
+            SELECT *
+            FROM Student
+            WHERE UPPER(TRIM(collegecode)) = UPPER(%s)
+              AND UPPER(studentid) = UPPER(%s)
+            ''',
+            (college_code, student_uid)
+        )
         student = cur.fetchone()
 
         if not student:
             cur.close()
             conn.close()
-            return jsonify({'exists': False, 'message': 'Student record not found in college system'}), 404
+            return jsonify({
+                'exists': False,
+                'message': 'Student record not found for this college'
+            }), 404
 
         otp_code = str(random.randint(1000, 9999))
+        otp_expires = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
 
         cur.execute(
-            'UPDATE Student SET otp = %s WHERE UPPER(studentid) = UPPER(%s)',
-            (otp_code, student['studentid'])
+            '''
+            UPDATE Student
+            SET otp = %s, otp_expires_at = %s
+            WHERE UPPER(studentid) = UPPER(%s) AND UPPER(TRIM(collegecode)) = UPPER(%s)
+            ''',
+            (otp_code, otp_expires, student['studentid'], college_code)
         )
         conn.commit()
         cur.close()
@@ -295,10 +387,12 @@ def verify_student_uid():
 @app.route('/api/student/login/verify-otp', methods=['POST'])
 def verify_student_otp():
     data = request.json or {}
-    college_code = data.get('collegeCode', '').strip()
-    student_uid = data.get('studentUid', '').strip()
+    college_code = normalize_code(data.get('collegeCode'))
+    student_uid = normalize_code(data.get('studentUid'))
     otp = str(data.get('otp', '')).strip()
 
+    if not college_code:
+        return jsonify({'valid': False, 'message': 'College code is required'}), 400
     if not student_uid or not otp:
         return jsonify({'valid': False, 'message': 'Student UID and OTP are required'}), 400
 
@@ -306,34 +400,62 @@ def verify_student_otp():
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute(
-            'SELECT * FROM Student WHERE UPPER(studentid) = UPPER(%s)',
-            (student_uid,)
+            '''
+            SELECT *
+            FROM Student
+            WHERE UPPER(studentid) = UPPER(%s)
+              AND UPPER(TRIM(collegecode)) = UPPER(%s)
+            ''',
+            (student_uid, college_code)
         )
         student = cur.fetchone()
 
         if not student:
             cur.close()
             conn.close()
-            return jsonify({'valid': False, 'message': 'Student record not found'}), 404
+            return jsonify({'valid': False, 'message': 'Student record not found for this college'}), 404
 
         db_otp = str(student.get('otp') or '').strip()
-        is_valid = bool(db_otp and otp == db_otp)
+        expires_at = student.get('otp_expires_at')
+        otp_expired = False
+        if expires_at:
+            now = datetime.datetime.utcnow()
+            if getattr(expires_at, 'tzinfo', None):
+                now = datetime.datetime.now(datetime.timezone.utc)
+            otp_expired = now > expires_at
+
+        is_valid = bool(db_otp and otp == db_otp and not otp_expired)
 
         portfolio = None
         if is_valid:
-            cur.execute('SELECT * FROM Portfolio WHERE UPPER(studentid) = UPPER(%s)', (student['studentid'],))
+            cur.execute(
+                'SELECT * FROM Portfolio WHERE UPPER(studentid) = UPPER(%s)',
+                (student['studentid'],)
+            )
             portfolio = cur.fetchone()
+            cur.execute(
+                '''
+                UPDATE Student
+                SET otp = NULL, otp_expires_at = NULL
+                WHERE UPPER(studentid) = UPPER(%s) AND UPPER(TRIM(collegecode)) = UPPER(%s)
+                ''',
+                (student['studentid'], college_code)
+            )
+            conn.commit()
 
         cur.close()
         conn.close()
 
+        if otp_expired:
+            return jsonify({'valid': False, 'message': 'Verification code expired. Please request a new code.'}), 401
+
         if is_valid:
-            token = generate_token(student['studentid'], 'student', student['collegecode'] or college_code)
+            token = generate_token(student['studentid'], 'student', student['collegecode'])
             return jsonify({
                 'valid': True,
                 'token': token,
                 'student': {
-                    'collegeCode': student['collegecode'] or college_code,
+                    'collegeCode': student['collegecode'],
                     'uid': student['studentid'],
                     'studentid': student['studentid'],
                     'name': student['name'],
@@ -351,8 +473,8 @@ def verify_student_otp():
                     'role': 'student'
                 }
             }), 200
-        else:
-            return jsonify({'valid': False, 'message': 'Invalid verification OTP. Please check and try again.'}), 401
+
+        return jsonify({'valid': False, 'message': 'Invalid verification OTP. Please check and try again.'}), 401
     except Exception as e:
         print("DB Error verify_student_otp:", e)
         return jsonify({'valid': False, 'message': 'Database error during OTP verification'}), 500

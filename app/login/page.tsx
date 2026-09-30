@@ -52,7 +52,12 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      await verifyCollege(collegeCode)
+      const res = await verifyCollege(collegeCode.trim())
+      if (!res?.exists) {
+        setCollegeCodeError(res?.message || 'Invalid college code')
+        return
+      }
+      setCollegeCode(collegeCode.trim().toUpperCase())
       setStep(2)
     } catch (error: any) {
       setCollegeCodeError(error.message || 'College not found')
@@ -80,12 +85,12 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      const res = await verifyAdminUsername(collegeCode, adminUid)
-      if (res && res.name) {
-        setAdminName(res.name)
-      } else {
-        setAdminName('Wilson Rao')
+      const res = await verifyAdminUsername(collegeCode, adminUid.trim())
+      if (!res?.exists) {
+        setAdminUidError(res?.message || 'Admin username or ID not found in database')
+        return
       }
+      setAdminName(res.name || '')
       setStep(7) // Step 7: Admin Password
     } catch (error: any) {
       setAdminUidError(error.message || 'Admin username or ID not found in database')
@@ -104,9 +109,13 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      const response = await verifyAdminLogin(collegeCode, adminUid, adminPassword)
+      const response = await verifyAdminLogin(collegeCode, adminUid.trim(), adminPassword)
+      if (!response?.valid || !response.admin) {
+        setAdminPasswordError(response?.message || 'Incorrect admin password')
+        return
+      }
       const adminData = response.admin
-      if (adminData && adminData.name) {
+      if (adminData.name) {
         setAdminName(adminData.name)
       }
       if (response.token) {
@@ -131,8 +140,12 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      const res = await verifyStudentUid(collegeCode, uid)
-      if (res && res.message) {
+      const res = await verifyStudentUid(collegeCode, uid.trim())
+      if (!res?.exists) {
+        setUidError(res?.message || 'UID not registered in college records')
+        return
+      }
+      if (res.message) {
         setOtpInfoMessage(res.message)
       }
       setStep(6)
@@ -175,7 +188,11 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      const response = await verifyStudentOtp(collegeCode, uid, otpCode)
+      const response = await verifyStudentOtp(collegeCode, uid.trim(), otpCode)
+      if (!response?.valid || !response.student) {
+        setOtpError(response?.message || 'Incorrect code. Please try again.')
+        return
+      }
       if (response.token) {
         localStorage.setItem('credimpact_token', response.token)
       }
@@ -526,7 +543,12 @@ export default function LoginPage() {
             </button>
 
             <div className="text-center">
-              <button className="text-sm font-medium text-primary hover:underline">
+              <button
+                type="button"
+                onClick={handleUidSubmit}
+                disabled={loading}
+                className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
+              >
                 Resend code
               </button>
             </div>

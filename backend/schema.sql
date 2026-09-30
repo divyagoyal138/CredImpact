@@ -108,6 +108,7 @@ CREATE INDEX IF NOT EXISTS idx_application_taskid ON Application(taskid);
 CREATE INDEX IF NOT EXISTS idx_messages_sender_receiver ON Messages(senderid, receiverid);
 CREATE INDEX IF NOT EXISTS idx_cc_alloc_students_allocid ON CcAllocationStudents(allocationid);
 CREATE INDEX IF NOT EXISTS idx_student_college_dept ON Student(collegecode, department);
+CREATE INDEX IF NOT EXISTS idx_admin_collegecode ON Admin(collegecode);
 
 -- ---------------------------------------------------------
 -- Seed Data Insertion
