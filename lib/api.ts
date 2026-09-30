@@ -1,8 +1,11 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL
-  ? (process.env.NEXT_PUBLIC_API_URL.endsWith('/api')
-      ? process.env.NEXT_PUBLIC_API_URL
-      : `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')}/api`)
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
+
+const API_BASE = rawApiUrl
+  ? (rawApiUrl.endsWith('/api')
+      ? rawApiUrl
+      : `${rawApiUrl.replace(/\/$/, '')}/api`)
   : 'http://localhost:5000/api';
+
 
 // Helper for fetch requests
 async function fetchApi(endpoint: string, options: RequestInit = {}) {
