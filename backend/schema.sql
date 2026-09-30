@@ -156,12 +156,15 @@ ON CONFLICT (adminid) DO UPDATE SET collegecode = EXCLUDED.collegecode, name = E
 -- Seed Students
 INSERT INTO Student (studentid, name, email, phone, password, semester, department, creditcoins, collegecode)
 VALUES 
+    ('24BIT001', 'Rahul Sharma', 'rahul@jhc.edu', '9876543215', 'student123', 4, 'Information Technology', 100, 'JHC'),
+    ('24BIT020', 'Divya Patel', 'divya@jhc.edu', '9876543216', 'student123', 4, 'Information Technology', 100, 'JHC'),
     ('2023CSE045', 'Aarav Patel', 'aarav@kjsce.edu', '9876543210', 'student123', 5, 'Computer Science', 150, 'JHC'),
     ('2023CSE012', 'Ananya Sharma', 'ananya@kjsce.edu', '9876543211', 'student123', 5, 'Computer Science', 210, 'JHC'),
     ('2023IT008', 'Rohan Mehta', 'rohan@kjsce.edu', '9876543212', 'student123', 3, 'IT Dept', 180, 'JHC'),
     ('2023BSC004', 'Priya Singh', 'priya@kjsce.edu', '9876543213', 'student123', 4, 'BSCIT', 120, 'JHC'),
     ('2023ADM002', 'Karan Verma', 'karan@kjsce.edu', '9876543214', 'student123', 2, 'Admin', 90, 'JHC')
 ON CONFLICT (studentid) DO UPDATE SET collegecode = EXCLUDED.collegecode;
+
 
 
 -- Seed Tasks

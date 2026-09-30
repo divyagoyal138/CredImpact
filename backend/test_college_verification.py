@@ -49,6 +49,16 @@ class CollegeVerificationTestCase(unittest.TestCase):
         data = response.get_json()
         self.assertTrue(data.get('exists'))
 
+    def test_student_uid_24bit001(self):
+        response = self.app.post('/api/student/login/verify-uid', json={
+            'collegeCode': 'JHC',
+            'studentUid': '24BIT001'
+        })
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertTrue(data.get('exists'))
+
+
     def test_invalid_admin_username_rejected(self):
         response = self.app.post('/api/admin/verify-username', json={
             'collegeCode': 'JHC',

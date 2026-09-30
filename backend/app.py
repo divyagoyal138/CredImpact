@@ -497,10 +497,10 @@ def verify_student_uid():
             '''
             SELECT *
             FROM Student
-            WHERE UPPER(TRIM(collegecode)) = UPPER(%s)
-              AND UPPER(studentid) = UPPER(%s)
+            WHERE UPPER(studentid) = UPPER(%s)
+              AND (collegecode IS NULL OR TRIM(collegecode) = '' OR UPPER(TRIM(collegecode)) = UPPER(%s))
             ''',
-            (college_code, student_uid)
+            (student_uid, college_code)
         )
         student = cur.fetchone()
 
@@ -513,15 +513,15 @@ def verify_student_uid():
             }), 404
 
         otp_code = str(random.randint(1000, 9999))
-        otp_expires = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+        otp_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=10)
 
         cur.execute(
             '''
             UPDATE Student
-            SET otp = %s, otp_expires_at = %s
-            WHERE UPPER(studentid) = UPPER(%s) AND UPPER(TRIM(collegecode)) = UPPER(%s)
+            SET otp = %s, otp_expires_at = %s, collegecode = %s
+            WHERE UPPER(studentid) = UPPER(%s)
             ''',
-            (otp_code, otp_expires, student['studentid'], college_code)
+            (otp_code, otp_expires, college_code, student['studentid'])
         )
         conn.commit()
         cur.close()
@@ -564,11 +564,12 @@ def verify_student_otp():
             SELECT *
             FROM Student
             WHERE UPPER(studentid) = UPPER(%s)
-              AND UPPER(TRIM(collegecode)) = UPPER(%s)
+              AND (collegecode IS NULL OR TRIM(collegecode) = '' OR UPPER(TRIM(collegecode)) = UPPER(%s))
             ''',
             (student_uid, college_code)
         )
         student = cur.fetchone()
+
 
         if not student:
             cur.close()
